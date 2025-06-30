@@ -1,0 +1,15 @@
+@EndUserText.label : 'employee address details'
+@AbapCatalog.enhancement.category : #NOT_EXTENSIBLE
+@AbapCatalog.tableCategory : #TRANSPARENT
+@AbapCatalog.deliveryClass : #A
+@AbapCatalog.dataMaintenance : #RESTRICTED
+define table zempaddr_jay {
+
+  key zf_empid_jay : zde_empid_jay not null;
+  zf_street_jay    : zde_street_jay;
+  zf_city_jay      : zde_city_jay;
+  zf_state_jay     : zde_state_jay;
+  zf_country_jay   : zde_country_jay;
+  zf_pincode_jay   : zde_pincode_jay;
+
+}
