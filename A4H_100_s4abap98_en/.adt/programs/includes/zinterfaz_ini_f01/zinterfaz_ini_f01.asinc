@@ -1,11 +1,14 @@
 *&---------------------------------------------------------------------*
-*& Include          ZINTERFAZ_INI_F01-PRUEBA03
+*& Include          ZINTERFAZ_INI_F01-PRUEBA04.1
 *&---------------------------------------------------------------------*
 
 *----------------------------------------------------------------------*
 * FORM f_main_process.
 *----------------------------------------------------------------------*
 FORM f_main_process.
+
+**se agrega una nueva variable de validacion
+data: lV_flag type abap_bool.
 
   " Paso 1: Leer y procesar archivo
   PERFORM f_read_file .
