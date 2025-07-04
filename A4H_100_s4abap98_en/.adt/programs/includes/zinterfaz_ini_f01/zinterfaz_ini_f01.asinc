@@ -7,22 +7,24 @@
 *----------------------------------------------------------------------*
 FORM f_main_process.
 
-**se agrega una nueva variable de validacion
-data: lV_flag type abap_bool.
+* proceso de lectura, extraccion de datos desde el archivo excel con
+* extension .csv , mapeo de campos de las estructuras de datos asociadas
+* a la bapi de creacion de materiales
 
   " Paso 1: Leer y procesar archivo
-  PERFORM f_read_file .
-  PERFORM f_process_file_data.
+  PERFORM f_read_file ."lectura del archivo de carga .csv
+  PERFORM f_process_file_data."procesamiento de los datos del archivo .csv en la estructura de
+                                "datos con los campos a mapear en la bapi de creacion de materiales
 
 
 *  PERFORM f_identificar_materiales.
   " Paso 2: Generar datos para BOM y Routing
-  PERFORM f_generate_bom_data.
-  PERFORM f_generate_routing_data.
-  PERFORM f_generate_production_versions.
+*  PERFORM f_generate_bom_data.
+*  PERFORM f_generate_routing_data.
+*  PERFORM f_generate_production_versions.
 
   " Paso 3: Crear componentes según selección
-  IF p_mat = 'X'.
+  IF p_mat = 'X'."opcion de creacion de materiales
     PERFORM f_create_materials.
   ENDIF.
 
@@ -48,7 +50,7 @@ ENDFORM.
 *----------------------------------------------------------------------*
 FORM f_read_file.
   DATA: l_path TYPE string.
-
+**funcion de lectura del archivo .csv desde una ruta local
   l_path  = p_file.
   CALL METHOD cl_gui_frontend_services=>gui_upload
     EXPORTING
@@ -71,7 +73,8 @@ FORM f_process_file_data.
 
 
 
-
+*procesamiento de datos del archivo .csv a la estructura de datos definida para el mapep de campos
+* de la bapi de creacion de materiales
 *----------------------------------------------------------------------
 * Procesar líneas (omitimos encabezado)
 *----------------------------------------------------------------------
@@ -605,6 +608,8 @@ FORM  f_create_materials.
         wa_material_description TYPE bapi_makt,
         tt_return               TYPE tt_return.
 
+*llenado de estructura de datos asociadas a las diferentes vistas
+*que se van a habilitar en la creacion del material
 
 *  WRITE: / 'Creando materiales...'.
   LOOP AT gt_materiales INTO DATA(ls_material).
@@ -661,19 +666,19 @@ FORM  f_create_materials.
     "ls_headdata-material =  ls_material-matnr.
     ls_headdata-ind_sector = ls_material-mbrsh.
     ls_headdata-matl_type = ls_material-mtart.
-    ls_headdata-basic_view    = 'X'.
+    ls_headdata-basic_view    = 'X'."datos basicos
 *    ls_headdata-purchase_view = 'X'.
 *    ls_headdata-account_view  = 'X'.
 *    ls_headdata-mrp_view      = 'X'.
 *    ls_headdata-storage_view  = 'X'.
-
+*datos texto de material
     REFRESH gt_material_description.
     wa_material_description-langu        = sy-langu.
     wa_material_description-langu_iso    = sy-langu.
     wa_material_description-matl_desc    = ls_material-maktx.
     APPEND  wa_material_description  TO gt_material_description.
 
-
+*datos basicosde material
     ls_clientedata-pur_valkey     = ''."ls_clientdata-pur_valkey.
     ls_clientedata-matl_group     = '01'."ls_material-matkl."grupo art
     ls_clientedata-base_uom       = ls_material-meins.
@@ -691,7 +696,7 @@ FORM  f_create_materials.
 
     ls_clientedatax-matl_group     = 'X'.
     ls_clientedatax-base_uom       = 'X'.
-
+*estructura de datos a cargar en la vista de datos basicos de material
 *  bapi_marax-unit_of_wt     = 'X'.
     ls_clientedatax-division       = 'X'.
     ls_clientedatax-unit_of_wt     = 'X'.

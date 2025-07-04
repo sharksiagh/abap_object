@@ -8,12 +8,16 @@
 *& 4. Versión de fabricación (Production Version)
 *& Compatible con SAP 7.7 y versiones superiores
 *&---------------------------------------------------------------------*
+*& Proceso de creacion de materiales a partir de un archivo excel
+
+
 
 REPORT  ZINTERFAZ_INI.
 
-INCLUDE:   ZINTERFAZ_INI_TOP,
-           ZINTERFAZ_INI_SCR,
-           ZINTERFAZ_INI_F01.
+* includes para segmentacion de codigo
+INCLUDE:   ZINTERFAZ_INI_TOP,"declaraciones globales , constantes y tipos de datos
+           ZINTERFAZ_INI_SCR,"declaracion de pantalla y paraametros de seleccion
+           ZINTERFAZ_INI_F01."declaracion de funciones y procedimientos
 *----------------------------------------------------------------------*
 * AT SELECTION-SCREEN
 *----------------------------------------------------------------------*
