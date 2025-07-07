@@ -10,7 +10,7 @@ FORM f_main_process.
 * proceso de lectura, extraccion de datos desde el archivo excel con
 * extension .csv , mapeo de campos de las estructuras de datos asociadas
 * a la bapi de creacion de materiales
-
+"Necesito un listado de los ultimos de 10 materiales dados de alta
   " Paso 1: Leer y procesar archivo
   PERFORM f_read_file ."lectura del archivo de carga .csv
   PERFORM f_process_file_data."procesamiento de los datos del archivo .csv en la estructura de
