@@ -9,9 +9,9 @@ Este repositorio contiene una colección de plantillas reutilizables para desarr
 ```
 adt/
 └── templates/
-     template_alv_classic.abap
-     template_alv_oo_range.abap
-     template_export_excel.abap
+     └──template_alv_classic.abap
+     └──template_alv_oo_range.abap
+     └──template_export_excel.abap
 
 ```
 
