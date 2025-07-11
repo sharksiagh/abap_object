@@ -1,6 +1,9 @@
 "-------------------------------------------------------------
 " TEMPLATE: Reporte ALV clásico con eventos básicos
-" DESCRIPCIÓN: Visualización de datos con REUSE_ALV_GRID_DISPLAY.
+" DESCRIPCIÓN: Visualización de datos con REUSE_ALV_GRID_DISPLAY."
+"Explicacion: Existe una rutina llamada show_alv_classic que permite generar
+" el catalogo de campos asociado a la salida del reporte alv. Esta salida se hace
+"usando el modulo de funcion REUSE_ALV_GRID_DISPLAY
 "-------------------------------------------------------------
 FORM show_alv_classic USING it_data TYPE STANDARD TABLE.
 
