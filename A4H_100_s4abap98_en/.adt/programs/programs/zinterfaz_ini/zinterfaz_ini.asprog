@@ -1,0 +1,39 @@
+*&---------------------------------------------------------------------*
+*& Report Z_CREATE_MATERIAL_BOM_ROUTING
+*&---------------------------------------------------------------------*
+*& Programa completo para crear:
+*& 1. Materiales desde archivo MOVIMIENTOS.xlsx
+*& 2. BOM (Lista de materiales)
+*& 3. Hoja de ruta (Routing)
+*& 4. Versión de fabricación (Production Version)
+*& Compatible con SAP 7.7 y versiones superiores
+*&---------------------------------------------------------------------*
+*& Proceso de creacion de materiales a partir de un archivo excel
+
+"Cambio natural
+
+REPORT  ZINTERFAZ_INI.
+
+* includes para segmentacion de codigo
+INCLUDE:   ZINTERFAZ_INI_TOP,"declaraciones globales , constantes y tipos de datos
+           ZINTERFAZ_INI_SCR,"declaracion de pantalla y paraametros de seleccion
+           ZINTERFAZ_INI_F01."declaracion de funciones y procedimientos
+*----------------------------------------------------------------------*
+* AT SELECTION-SCREEN
+*----------------------------------------------------------------------*
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_file.
+  PERFORM f_file_help CHANGING p_file.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_arbpl.
+  PERFORM f_work_center_help CHANGING p_arbpl.
+
+*----------------------------------------------------------------------*
+* INITIALIZATION
+*----------------------------------------------------------------------*
+INITIALIZATION.
+
+*----------------------------------------------------------------------*
+* START-OF-SELECTION
+*----------------------------------------------------------------------*
+START-OF-SELECTION.
+  PERFORM f_main_process.

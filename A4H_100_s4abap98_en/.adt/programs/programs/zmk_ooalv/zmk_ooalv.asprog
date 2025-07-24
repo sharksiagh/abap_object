@@ -1,0 +1,153 @@
+*&---------------------------------------------------------------------*
+*& Report ZMK_OOALV
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT zmk_ooalv.
+
+DATA: lv_vbeln TYPE vbeln,
+      go_con   TYPE REF TO cl_gui_custom_container,
+      go_alv   TYPE REF TO cl_gui_alv_grid,
+      gt_fcat  TYPE lvc_t_fcat,
+      gw_fcat  TYPE lvc_s_fcat.
+
+SELECT-OPTIONS:S_vbeln FOR lv_vbeln.
+
+*SELECT vbak~vbeln,
+*       vbak~erdat,
+*       vbak~erzet,
+*       vbak~ernam,
+*       vbap~posnr,
+*       vbap~matnr,
+*       vbap~matwa,
+*       vbap~pmatn,
+*       vbap~charg FROM vbak
+*  INNER JOIN vbap ON vbap~vbeln = vbak~vbeln
+*  INTO TABLE @DATA(it_data) WHERE vbak~vbeln IN @s_vbeln.
+
+SELECT vbeln, erdat, ernam FROM vbak INTO TABLE @DATA(it_data)
+  WHERE vbeln IN @s_vbeln.
+PERFORM built_fcat.
+
+CALL SCREEN 900.
+*&---------------------------------------------------------------------*
+*& Form built_fcat
+*&---------------------------------------------------------------------*
+FORM built_fcat .
+
+  CLEAR gw_fcat.
+  gw_fcat-fieldname = 'VBELN'.
+  gw_fcat-seltext = 'Sales Order'.
+  APPEND gw_fcat TO gt_fcat.
+
+*  CLEAR gw_fcat.
+*  gw_fcat-fieldname = 'POSNR'.
+*  gw_fcat-seltext = 'Item No.'.
+*  APPEND gw_fcat TO gt_fcat.
+
+  CLEAR gw_fcat.
+  gw_fcat-fieldname = 'ERDAT'.
+  gw_fcat-seltext = 'Date'.
+  APPEND gw_fcat TO gt_fcat.
+
+  CLEAR gw_fcat.
+  gw_fcat-fieldname = 'ERNAM'.
+  gw_fcat-seltext = 'Name'.
+  APPEND gw_fcat TO gt_fcat.
+
+*  CLEAR gw_fcat.
+*  gw_fcat-fieldname = 'MATNR'.
+*  gw_fcat-seltext = 'Material No.'.
+*  APPEND gw_fcat TO gt_fcat.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Module STATUS_0900 OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE status_0900 OUTPUT.
+* SET PF-STATUS 'xxxxxxxx'.
+* SET TITLEBAR 'xxx'.
+
+  CREATE OBJECT go_con
+    EXPORTING
+*     parent                      =
+      container_name              = 'CONT'
+*     style                       =
+*     lifetime                    = lifetime_default
+*     repid                       =
+*     dynnr                       =
+*     no_autodef_progid_dynnr     =
+    EXCEPTIONS
+      cntl_error                  = 1
+      cntl_system_error           = 2
+      create_error                = 3
+      lifetime_error              = 4
+      lifetime_dynpro_dynpro_link = 5
+      OTHERS                      = 6.
+  IF sy-subrc <> 0.
+*   MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+*              WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  ENDIF.
+
+  CREATE OBJECT go_alv
+    EXPORTING
+*     i_shellstyle      = 0
+*     i_lifetime        =
+      i_parent          = go_con
+*     i_appl_events     = SPACE
+*     i_parentdbg       =
+*     i_applogparent    =
+*     i_graphicsparent  =
+*     i_name            =
+*     i_fcat_complete   = SPACE
+*     o_previous_sral_handler =
+*     i_use_one_ux_appearance = ABAP_FALSE
+*     o_common_hub      =
+*     o_function_tool   =
+    EXCEPTIONS
+      error_cntl_create = 1
+      error_cntl_init   = 2
+      error_cntl_link   = 3
+      error_dp_create   = 4
+      OTHERS            = 5.
+  IF sy-subrc <> 0.
+*   MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+*              WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  ENDIF.
+
+  CALL METHOD go_alv->set_table_for_first_display
+    EXPORTING
+*     i_buffer_active  =
+*     i_bypassing_buffer            =
+*     i_consistency_check           =
+      i_structure_name = 'VBAK'
+*     is_variant       =
+*     i_save           =
+*     i_default        = 'X'
+*     is_layout        =
+*     is_print         =
+*     it_special_groups             =
+*     it_toolbar_excluding          =
+*     it_hyperlink     =
+*     it_alv_graphics  =
+*     it_except_qinfo  =
+*     ir_salv_adapter  =
+    CHANGING
+      it_fieldcatalog  = gt_fcat
+      it_outtab        = it_data
+*     it_sort          =
+*     it_filter        =
+*    EXCEPTIONS
+*     invalid_parameter_combination = 1
+*     program_error    = 2
+*     too_many_lines   = 3
+*     others           = 4
+    .
+  IF sy-subrc <> 0.
+*   Implement suitable error handling here
+  ENDIF.
+
+
+ENDMODULE.

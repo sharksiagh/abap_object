@@ -1,0 +1,29 @@
+*&---------------------------------------------------------------------*
+*& Include          ZINTERFAZ_INI_SCR_COMMIT 24/07.
+*&---------------------------------------------------------------------*
+
+*----------------------------------------------------------------------*
+* PANTALLA DE SELECCIÓN
+*----------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+  PARAMETERS: p_file TYPE rlgrap-filename OBLIGATORY.
+SELECTION-SCREEN END OF BLOCK b1.
+
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE text-002.
+  PARAMETERS: p_mat AS CHECKBOX DEFAULT 'X',     " Crear materiales
+              p_bom AS CHECKBOX DEFAULT 'X',     " Crear BOMs
+              p_rout AS CHECKBOX DEFAULT 'X',    " Crear rutas
+              p_vers AS CHECKBOX DEFAULT 'X'.    " Crear versiones
+SELECTION-SCREEN END OF BLOCK b2.
+
+SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE text-003.
+  PARAMETERS: p_test AS CHECKBOX DEFAULT 'X',
+              p_commit AS CHECKBOX DEFAULT space,
+              p_detail AS CHECKBOX DEFAULT 'X'.
+SELECTION-SCREEN END OF BLOCK b3.
+
+SELECTION-SCREEN BEGIN OF BLOCK b4 WITH FRAME TITLE text-004.
+  PARAMETERS: p_werks TYPE werks_d DEFAULT 'PSQ',
+              p_lgort TYPE lgort_d DEFAULT 'CB01',
+              p_arbpl TYPE arbpl DEFAULT 'DEC001'.
+SELECTION-SCREEN END OF BLOCK b4.

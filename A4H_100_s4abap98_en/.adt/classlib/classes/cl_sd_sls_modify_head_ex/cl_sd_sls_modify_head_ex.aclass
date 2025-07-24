@@ -1,0 +1,35 @@
+class CL_SD_SLS_MODIFY_HEAD_EX definition
+  public
+  final
+  create public .
+
+public section.
+
+  interfaces IF_BADI_INTERFACE .
+  interfaces IF_SD_SLS_MODIFY_HEAD .
+protected section.
+private section.
+ENDCLASS.
+
+
+
+CLASS CL_SD_SLS_MODIFY_HEAD_EX IMPLEMENTATION.
+
+
+  method if_sd_sls_modify_head~modify_fields.
+*   This method can be used to set values to sales document header extension fields.
+*   Example:
+*{   INSERT         A4HK901150                                        1
+*
+    data v_char type c.
+*}   INSERT
+*
+*   First of all assign existing extension field values to output parameter:
+*   salesdocument_extension_out = salesdocument_extension_in.
+*
+*   Then change further values:
+*   if salesdocument-salesdocumenttype = 'TA'.
+*     salesdocument_extension_out-yy1_field_sdh = 'ABC'.
+*   endif.
+  endmethod.
+ENDCLASS.
