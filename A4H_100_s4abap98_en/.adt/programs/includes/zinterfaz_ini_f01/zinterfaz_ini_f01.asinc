@@ -1,0 +1,1419 @@
+*&---------------------------------------------------------------------*
+*& Include          ZINTERFAZ_INI_F01-PRUEBA-04/08/2025
+*&---------------------------------------------------------------------*
+
+*----------------------------------------------------------------------*
+* FORM f_main_process.
+*----------------------------------------------------------------------*
+FORM f_main_process.
+
+
+"Cambio natural
+* proceso de lectura, extraccion de datos desde el archivo excel con
+* extension .csv , mapeo de campos de las estructuras de datos asociadas
+* a la bapi de creacion de materiales
+"Necesito un listado de los ultimos de 10 materiales dados de alta
+  " Paso 1: Leer y procesar archivo
+  PERFORM f_read_file ."lectura del archivo de carga .csv
+  PERFORM f_process_file_data."procesamiento de los datos del archivo .csv en la estructura de
+                                "datos con los campos a mapear en la bapi de creacion de materiales
+
+
+*  PERFORM f_identificar_materiales.
+  " Paso 2: Generar datos para BOM y Routing
+*  PERFORM f_generate_bom_data.
+*  PERFORM f_generate_routing_data.
+*  PERFORM f_generate_production_versions.
+  " Paso 3: Crear componentes según selección
+  IF p_mat = 'X'."opcion de creacion de materiales
+    PERFORM f_create_materials.
+  ENDIF.
+
+  IF p_bom = 'X'.
+    PERFORM f_create_boms.
+  ENDIF.
+
+  IF p_rout = 'X'.
+    PERFORM f_create_routings.
+  ENDIF.
+
+  IF p_vers = 'X'.
+    PERFORM f_create_production_versions.
+  ENDIF.
+
+  " Paso 4: Mostrar resultados
+  PERFORM f_show_results.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_read_file
+*----------------------------------------------------------------------*
+FORM f_read_file.
+  DATA: l_path TYPE string.
+**funcion de lectura del archivo .csv desde una ruta local
+  l_path  = p_file.
+  CALL METHOD cl_gui_frontend_services=>gui_upload
+    EXPORTING
+      filename = l_path
+      filetype = 'ASC'
+    CHANGING
+      data_tab = it_raw
+    EXCEPTIONS
+      OTHERS   = 1.
+
+  IF sy-subrc <> 0.
+    MESSAGE 'Error al cargar el archivo CSV' TYPE 'E'.
+  ENDIF.
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_process_file_data
+*----------------------------------------------------------------------*
+FORM f_process_file_data.
+
+
+
+*procesamiento de datos del archivo .csv a la estructura de datos definida para el mapep de campos
+* de la bapi de creacion de materiales
+*----------------------------------------------------------------------
+* Procesar líneas (omitimos encabezado)
+*----------------------------------------------------------------------
+  LOOP AT it_raw INTO lv_line FROM 2.
+    SPLIT lv_line AT ',' INTO
+
+    gs_movimiento-c_matnr
+    gs_movimiento-c_mbrsh
+    gs_movimiento-c_mtart
+    gs_movimiento-c_maktx
+    gs_movimiento-c_meins
+    "gs_movimiento-c_grpts
+    gs_movimiento-c_bismt
+    gs_movimiento-c_spart
+    gs_movimiento-c_ntgew
+    gs_movimiento-c_mfrpn
+    gs_movimiento-c_tragr
+    gs_movimiento-c_gewei
+    gs_movimiento-c_ntgew2.
+
+*      gs_movimiento-c_baja_log
+*      gs_movimiento-c_llave
+*      gs_movimiento-n_id_ejecucion
+*      gs_movimiento-c_linea
+*      gs_movimiento-c_etu
+*      gs_movimiento-n_movimiento_cod
+*      gs_movimiento-c_numero_cliente
+*      gs_movimiento-c_usuario
+*      gs_movimiento-c_ofa
+*      gs_movimiento-n_id_material
+*      gs_movimiento-f_movimiento
+*      gs_movimiento-n_transaccion
+*      gs_movimiento-n_movimiento_id
+*      gs_movimiento-f_transmision
+*      gs_movimiento-c_colada
+*      gs_movimiento-c_planta_destino
+*      gs_movimiento-c_pedido_posicion
+*      gs_movimiento-c_embalaje_aplicado_cod
+*      gs_movimiento-c_estrategia
+*      gs_movimiento-c_clase_semielaborado
+*      gs_movimiento-n_peso_neto_entrada
+*      gs_movimiento-c_pep
+*      gs_movimiento-n_secuencia
+*      gs_movimiento-n_espesor_entrada
+*      gs_movimiento-n_ancho_entrada
+*      gs_movimiento-n_largo_entrada
+*      gs_movimiento-n_diametro_interior
+*      gs_movimiento-n_peso_bruto
+*      gs_movimiento-n_peso_embalaje
+*      gs_movimiento-n_peso_manguito
+*      gs_movimiento-n_peso_manguito_anterior
+*      gs_movimiento-n_peso_embalaje_anterior
+*      gs_movimiento-c_linea_origen
+*      gs_movimiento-c_tipo_proceso
+*      gs_movimiento-n_peso
+*      gs_movimiento-c_producto_cod
+*      gs_movimiento-c_grado_acero
+*      gs_movimiento-c_mercado
+*      gs_movimiento-n_peso_anterior
+*      gs_movimiento-c_bulto_anterior
+*      gs_movimiento-c_embalaje_cod
+*      gs_movimiento-c_sociedad
+*      gs_movimiento-c_usina_cod
+*      gs_movimiento-n_espesor
+*      gs_movimiento-n_ancho
+*      gs_movimiento-n_largo
+*      gs_movimiento-c_ofa_anterior
+*      gs_movimiento-c_dictamen
+*      gs_movimiento-c_estado_laboratorio
+*      gs_movimiento-n_espesor_anterior
+*      gs_movimiento-n_ancho_anterior
+*      gs_movimiento-n_largo_anterior
+*      gs_movimiento-c_material
+*      gs_movimiento-c_planta
+*      gs_movimiento-c_calidad
+*      gs_movimiento-c_defecto
+*      gs_movimiento-c_estado_material
+*      gs_movimiento-c_deposito
+*      gs_movimiento-c_calidad_anterior
+*      gs_movimiento-c_planta_anterior
+*      gs_movimiento-c_embalaje_ofa_cod
+*      gs_movimiento-c_linea_imputacion_caida
+*      gs_movimiento-c_mercado_pedido
+*      gs_movimiento-c_tipo_bulto
+*      gs_movimiento-c_almacen
+*      gs_movimiento-c_dictamen_resolucion
+*      gs_movimiento-c_cuenta_stock
+*      gs_movimiento-c_unidad_negocio
+*      gs_movimiento-c_calidad_ofa
+*      gs_movimiento-c_dictamen_linea
+*      gs_movimiento-c_material_origen_cod
+*      gs_movimiento-c_pro_grupo_cod
+*      gs_movimiento-c_prod_grupo_desc
+*      gs_movimiento-n_dictamen_linea_calidad
+*      gs_movimiento-c_numero_bulto_prod
+*      gs_movimiento-c_marca_logica_calculo
+*      gs_movimiento-c_numero_bulto_padre
+*      gs_movimiento-c_tipo_scrap
+*      gs_movimiento-c_evento_desc
+*      gs_movimiento-c_sociedad_linea
+*      gs_movimiento-c_desbaste
+*      gs_movimiento-c_grado_acero_ofa
+*      gs_movimiento-c_composicion_cabezal
+*      gs_movimiento-c_pro_clase_cod
+*      gs_movimiento-c_pro_clase_ant_cod
+*      gs_movimiento-c_pro_clase_desc
+*      gs_movimiento-c_pro_id_norma
+*      gs_movimiento-c_pro_norma
+*      gs_movimiento-c_pro_subnorma
+*      gs_movimiento-c_pro_grado
+*      gs_movimiento-c_pro_norma_ant
+*      gs_movimiento-c_pro_grado_ant
+*      gs_movimiento-c_pro_uso_general
+*      gs_movimiento-c_pro_sustrato
+*      gs_movimiento-c_pro_sustrato_recub
+*      gs_movimiento-c_pro_superficie
+*      gs_movimiento-c_pro_recubrimiento
+*      gs_movimiento-c_pro_limpieza_sup
+*      gs_movimiento-c_pro_tratamiento_sup
+*      gs_movimiento-c_pro_aceitado
+*      gs_movimiento-c_pro_perfil
+*      gs_movimiento-c_linea_subproceso
+*      gs_movimiento-n_kg_esmerilado
+*      gs_movimiento-c_numero_remito
+*      gs_movimiento-n_peso_consumido
+*      gs_movimiento-c_tipo_baja_despacho
+*      gs_movimiento-n_peso_scrap.
+
+    APPEND gs_movimiento TO gt_movimientos.
+  ENDLOOP.
+  "BREAK-POINT.
+  DATA:    ls_material   TYPE ty_movimiento_data.
+
+  LOOP AT gt_movimientos INTO gs_movimiento.
+    ls_material-matnr  = gs_movimiento-c_matnr.
+    ls_material-mbrsh  = gs_movimiento-c_mbrsh.
+    ls_material-mtart  = gs_movimiento-c_mtart.
+    ls_material-maktx  = gs_movimiento-c_maktx.
+    ls_material-meins  = gs_movimiento-c_meins.
+    ls_material-bismt  = gs_movimiento-c_BISMT.
+    ls_material-spart  = gs_movimiento-c_spart.
+    ls_material-ntgew  = gs_movimiento-c_NTGEW.
+    ls_material-mfrpn  = gs_movimiento-c_MFRPN.
+    ls_material-tragr  = gs_movimiento-c_TRAGR.
+    ls_material-gewei  = gs_movimiento-c_GEWEI.
+    ls_material-ntgew2 = gs_movimiento-c_NTGEW2.
+
+*    ls_material-material = gs_movimiento-n_id_material.
+*    ls_material-descripcion = gs_movimiento-c_material.
+*    ls_material-centro = 'AK01'. "gs_movimiento-
+*    ls_material-almacen = 'AK01'. "gs_movimiento-
+*    IF gs_movimiento-n_peso_neto_entrada EQ 'NULL'.
+*      ls_material-peso_bruto = 0.
+*    ELSE.
+*      ls_material-peso_bruto = gs_movimiento-n_peso_neto_entrada.
+*    ENDIF.
+*    ls_material-espesor = gs_movimiento-n_espesor_entrada.
+*    ls_material-ancho = gs_movimiento-n_ancho_entrada.
+*    ls_material-largo = gs_movimiento-n_largo_entrada.
+*    ls_material-grado_acero = gs_movimiento-c_grado_acero.
+*    ls_material-norma = gs_movimiento-c_pro_id_norma.
+*    ls_material-grupo_proceso = 'DECAPADO'.
+*    ls_material-uso_general = gs_movimiento-c_pro_uso_general.
+*    ls_material-superficie = gs_movimiento-c_pro_superficie.
+*    ls_material-tratamiento = gs_movimiento-c_pro_tratamiento_sup.
+*    ls_material-tipo_material = 'HERS'.
+*    ls_material-grupo_articulos = gs_movimiento-c_pro_grupo_cod.
+*    ls_material-ofa = gs_movimiento-c_ofa.
+*    ls_material-colada = gs_movimiento-c_colada.
+*    ls_material-clase_semielaborado = gs_movimiento-c_clase_semielaborado.
+    APPEND ls_material TO gt_materiales.
+  ENDLOOP.
+
+*  DATA: lt_campos     TYPE TABLE OF string,
+*        ls_material   TYPE ty_movimiento_data,
+*        lv_line       TYPE string,
+*        lv_contador   TYPE i.
+*
+*  " Hash table para materiales únicos
+*  DATA: BEGIN OF ls_hash,
+*          material TYPE matnr,
+*        END OF ls_hash,
+*        lt_hash LIKE HASHED TABLE OF ls_hash WITH UNIQUE KEY material.
+*
+*  LOOP AT gt_file_data INTO lv_line.
+*
+*    ADD 1 TO lv_contador.
+*    IF lv_contador = 1. CONTINUE. ENDIF.  " Skip header
+*
+*    " Limpiar línea
+*    REPLACE ALL OCCURRENCES OF '"' IN lv_line WITH ''.
+*
+*    " Dividir campos
+*    SPLIT lv_line AT ';' INTO TABLE lt_campos.
+*    IF lines( lt_campos ) < 10.
+*      SPLIT lv_line AT ',' INTO TABLE lt_campos.
+*    ENDIF.
+*
+*    " Verificar suficientes campos
+*    IF lines( lt_campos ) >= 53.
+*
+*      " Extraer material
+*      READ TABLE lt_campos INTO DATA(lv_material) INDEX 11.
+*
+*      IF lv_material IS NOT INITIAL AND lv_material <> 'NULL'.
+*
+*        " Control de duplicados
+*        ls_hash-material = lv_material.
+*        READ TABLE lt_hash FROM ls_hash TRANSPORTING NO FIELDS.
+*        IF sy-subrc <> 0.
+*
+*          INSERT ls_hash INTO TABLE lt_hash.
+*
+*          " Mapear datos
+*          CLEAR ls_material.
+*          ls_material-material = lv_material.
+*
+*          " Descripción (posición 81)
+*          READ TABLE lt_campos INTO DATA(lv_campo) INDEX 81.
+*          ls_material-descripcion = lv_campo.
+*
+*          " Centro (posición 54)
+*          READ TABLE lt_campos INTO lv_campo INDEX 54.
+*          ls_material-centro = lv_campo.
+*
+*          " Almacén (posición 58)
+*          READ TABLE lt_campos INTO lv_campo INDEX 58.
+*          IF lv_campo <> 'NULL'.
+*            ls_material-almacen = lv_campo.
+*          ELSE.
+*            ls_material-almacen = p_lgort.
+*          ENDIF.
+*
+*          " Peso (posición 29)
+*          READ TABLE lt_campos INTO lv_campo INDEX 29.
+*          IF lv_campo <> 'NULL' AND lv_campo IS NOT INITIAL.
+*            ls_material-peso_bruto = lv_campo.
+*          ENDIF.
+*
+*          " Dimensiones
+*          READ TABLE lt_campos INTO lv_campo INDEX 44.
+*          ls_material-espesor = lv_campo.
+*
+*          READ TABLE lt_campos INTO lv_campo INDEX 45.
+*          ls_material-ancho = lv_campo.
+*
+*          READ TABLE lt_campos INTO lv_campo INDEX 46.
+*          ls_material-largo = lv_campo.
+*
+*          " Propiedades del acero
+*          READ TABLE lt_campos INTO lv_campo INDEX 38.
+*          ls_material-grado_acero = lv_campo.
+*
+*          READ TABLE lt_campos INTO lv_campo INDEX 69.
+*          ls_material-grupo_proceso = lv_campo.
+*
+*          READ TABLE lt_campos INTO lv_campo INDEX 83.
+*          ls_material-norma = lv_campo.
+*
+*          " OFA y Colada para BOM/Routing
+*          READ TABLE lt_campos INTO lv_campo INDEX 10.  " c_ofa
+*          ls_material-ofa = lv_campo.
+*
+*          READ TABLE lt_campos INTO lv_campo INDEX 16.  " c_colada
+*          ls_material-colada = lv_campo.
+*
+*          READ TABLE lt_campos INTO lv_campo INDEX 21.  " c_clase_semielaborado
+*          ls_material-clase_semielaborado = lv_campo.
+*
+*          " Determinar tipo de material
+*          PERFORM f_determine_material_type
+*                  USING ls_material-grupo_proceso
+*                  CHANGING ls_material-tipo_material
+*                          ls_material-grupo_articulos.
+*
+*          APPEND ls_material TO gt_materiales.
+*
+*        ENDIF.
+*      ENDIF.
+*    ENDIF.
+*  ENDLOOP.
+*
+*  WRITE: / 'Materiales únicos procesados:', lines( gt_materiales ).
+*
+*ENDFORM.
+*
+**----------------------------------------------------------------------*
+** FORM f_determine_material_type
+**----------------------------------------------------------------------*
+*FORM f_determine_material_type
+*      USING    iv_grupo_proceso TYPE any
+*      CHANGING cv_tipo_material TYPE any
+*               cv_grupo_articulos TYPE any.
+*
+*  DATA: lv_grupo TYPE string.
+*  lv_grupo = iv_grupo_proceso.
+*  TRANSLATE lv_grupo TO UPPER CASE.
+*
+*  CASE lv_grupo.
+*    WHEN 'DECAPADO'.
+*      cv_tipo_material = 'HERS'.
+*      cv_grupo_articulos = 'DECAP'.
+*    WHEN 'GALVANNEAL'.
+*      cv_tipo_material = 'HERS'.
+*      cv_grupo_articulos = 'GALVA'.
+*    WHEN 'CALIENTE'.
+*      cv_tipo_material = 'HERS'.
+*      cv_grupo_articulos = 'CALIT'.
+*    WHEN 'TEMPLADO'.
+*      cv_tipo_material = 'HERS'.
+*      cv_grupo_articulos = 'TEMPL'.
+*    WHEN OTHERS.
+*      cv_tipo_material = 'HERS'.
+*      cv_grupo_articulos = 'STEEL'.
+*  ENDCASE.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_generate_bom_data
+*----------------------------------------------------------------------*
+FORM f_generate_bom_data.
+*
+*  DATA: ls_bom_comp TYPE ty_bom_component.
+*
+*  " Generar componentes BOM basados en proceso siderúrgico
+*  LOOP AT gt_materiales INTO DATA(ls_material).
+*
+*    " Para materiales DECAPADOS, agregar materia prima base
+*    IF ls_material-grupo_proceso = 'DECAPADO'.
+*
+*      " Componente 1: Bobina en caliente
+*      CLEAR ls_bom_comp.
+*      ls_bom_comp-material_padre = ls_material-material.
+*      ls_bom_comp-componente = 'MP' && ls_material-grado_acero && 'HC'.  " Material en caliente
+*      ls_bom_comp-cantidad = '1.05'.  " Factor de merma 5%
+*      ls_bom_comp-unidad = 'KG'.
+*      ls_bom_comp-posicion = '0010'.
+*      ls_bom_comp-tipo_posicion = 'L'.  " Stock item
+*      ls_bom_comp-descripcion = 'Bobina en caliente ' && ls_material-grado_acero.
+*      APPEND ls_bom_comp TO gt_bom_components.
+*
+*      " Componente 2: Ácido para decapado
+*      CLEAR ls_bom_comp.
+*      ls_bom_comp-material_padre = ls_material-material.
+*      ls_bom_comp-componente = 'ACID_HCL_001'.
+*      ls_bom_comp-cantidad = '0.05'.   " 50g por kg
+*      ls_bom_comp-unidad = 'KG'.
+*      ls_bom_comp-posicion = '0020'.
+*      ls_bom_comp-tipo_posicion = 'L'.
+*      ls_bom_comp-descripcion = 'Ácido clorhídrico para decapado'.
+*      APPEND ls_bom_comp TO gt_bom_components.
+*
+*    ELSEIF ls_material-grupo_proceso = 'GALVANNEAL'.
+*
+*      " Componente 1: Material decapado
+*      CLEAR ls_bom_comp.
+*      ls_bom_comp-material_padre = ls_material-material.
+*      ls_bom_comp-componente = replace( val = ls_material-material sub = 'GL00' with = 'PM400' ).
+*      ls_bom_comp-cantidad = '1.02'.   " Factor de merma 2%
+*      ls_bom_comp-unidad = 'KG'.
+*      ls_bom_comp-posicion = '0010'.
+*      ls_bom_comp-tipo_posicion = 'L'.
+*      ls_bom_comp-descripcion = 'Material decapado base'.
+*      APPEND ls_bom_comp TO gt_bom_components.
+*
+*      " Componente 2: Zinc para galvanizado
+*      CLEAR ls_bom_comp.
+*      ls_bom_comp-material_padre = ls_material-material.
+*      ls_bom_comp-componente = 'ZINC_99_99'.
+*      ls_bom_comp-cantidad = '0.45'.   " 450g/m2 aprox
+*      ls_bom_comp-unidad = 'KG'.
+*      ls_bom_comp-posicion = '0020'.
+*      ls_bom_comp-tipo_posicion = 'L'.
+*      ls_bom_comp-descripcion = 'Zinc 99.99% pureza'.
+*      APPEND ls_bom_comp TO gt_bom_components.
+*
+*    ENDIF.
+*
+*  ENDLOOP.
+*
+*  WRITE: / 'Componentes BOM generados:', lines( gt_bom_components ).
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_generate_routing_data
+*----------------------------------------------------------------------*
+FORM f_generate_routing_data.
+
+*  DATA: ls_routing_op TYPE ty_routing_operation.
+*
+*  " Generar operaciones de ruteo según proceso
+*  LOOP AT gt_materiales INTO DATA(ls_material).
+*
+*    CASE ls_material-grupo_proceso.
+*      WHEN 'DECAPADO'.
+*
+*        " Operación 10: Desenrollado
+*        CLEAR ls_routing_op.
+*        ls_routing_op-material = ls_material-material.
+*        ls_routing_op-operacion = '0010'.
+*        ls_routing_op-centro_trabajo = 'DEC_UNCOIL'.
+*        ls_routing_op-descripcion = 'Desenrollado de bobina'.
+*        ls_routing_op-tiempo_setup = '30'.     " 30 min setup
+*        ls_routing_op-tiempo_proceso = '0.5'.  " 0.5 min/ton
+*        ls_routing_op-unidad_tiempo = 'MIN'.
+*        ls_routing_op-secuencia = '0010'.
+*        APPEND ls_routing_op TO gt_routing_ops.
+*
+*        " Operación 20: Decapado
+*        CLEAR ls_routing_op.
+*        ls_routing_op-material = ls_material-material.
+*        ls_routing_op-operacion = '0020'.
+*        ls_routing_op-centro_trabajo = 'DEC_PICKLE'.
+*        ls_routing_op-descripcion = 'Decapado ácido'.
+*        ls_routing_op-tiempo_setup = '60'.     " 60 min setup
+*        ls_routing_op-tiempo_proceso = '2.0'.  " 2 min/ton
+*        ls_routing_op-unidad_tiempo = 'MIN'.
+*        ls_routing_op-secuencia = '0020'.
+*        APPEND ls_routing_op TO gt_routing_ops.
+*
+*        " Operación 30: Enrollado
+*        CLEAR ls_routing_op.
+*        ls_routing_op-material = ls_material-material.
+*        ls_routing_op-operacion = '0030'.
+*        ls_routing_op-centro_trabajo = 'DEC_RECOIL'.
+*        ls_routing_op-descripcion = 'Enrollado final'.
+*        ls_routing_op-tiempo_setup = '20'.     " 20 min setup
+*        ls_routing_op-tiempo_proceso = '0.8'.  " 0.8 min/ton
+*        ls_routing_op-unidad_tiempo = 'MIN'.
+*        ls_routing_op-secuencia = '0030'.
+*        APPEND ls_routing_op TO gt_routing_ops.
+*
+*      WHEN 'GALVANNEAL'.
+*
+*        " Operación 10: Preparación superficie
+*        CLEAR ls_routing_op.
+*        ls_routing_op-material = ls_material-material.
+*        ls_routing_op-operacion = '0010'.
+*        ls_routing_op-centro_trabajo = 'GAL_PREP'.
+*        ls_routing_op-descripcion = 'Preparación superficie'.
+*        ls_routing_op-tiempo_setup = '45'.
+*        ls_routing_op-tiempo_proceso = '1.2'.
+*        ls_routing_op-unidad_tiempo = 'MIN'.
+*        ls_routing_op-secuencia = '0010'.
+*        APPEND ls_routing_op TO gt_routing_ops.
+*
+*        " Operación 20: Galvanizado
+*        CLEAR ls_routing_op.
+*        ls_routing_op-material = ls_material-material.
+*        ls_routing_op-operacion = '0020'.
+*        ls_routing_op-centro_trabajo = 'GAL_COAT'.
+*        ls_routing_op-descripcion = 'Galvanizado por inmersión'.
+*        ls_routing_op-tiempo_setup = '90'.
+*        ls_routing_op-tiempo_proceso = '3.5'.
+*        ls_routing_op-unidad_tiempo = 'MIN'.
+*        ls_routing_op-secuencia = '0020'.
+*        APPEND ls_routing_op TO gt_routing_ops.
+*
+*        " Operación 30: Recocido (Anneal)
+*        CLEAR ls_routing_op.
+*        ls_routing_op-material = ls_material-material.
+*        ls_routing_op-operacion = '0030'.
+*        ls_routing_op-centro_trabajo = 'GAL_ANNEAL'.
+*        ls_routing_op-descripcion = 'Recocido galvanneal'.
+*        ls_routing_op-tiempo_setup = '120'.
+*        ls_routing_op-tiempo_proceso = '4.0'.
+*        ls_routing_op-unidad_tiempo = 'MIN'.
+*        ls_routing_op-secuencia = '0030'.
+*        APPEND ls_routing_op TO gt_routing_ops.
+*
+*    ENDCASE.
+*
+*  ENDLOOP.
+*
+*  WRITE: / 'Operaciones de ruteo generadas:', lines( gt_routing_ops ).
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_generate_production_versions
+*----------------------------------------------------------------------*
+FORM f_generate_production_versions.
+*
+*  DATA: ls_prod_version TYPE ty_production_version.
+*
+*  " Generar versiones de producción
+*  LOOP AT gt_materiales INTO DATA(ls_material).
+*
+*    CLEAR ls_prod_version.
+*    ls_prod_version-material = ls_material-material.
+*    ls_prod_version-centro = ls_material-centro.
+*    ls_prod_version-version = gc_version_default.
+*    ls_prod_version-bom_alternative = '01'.  " Alternativa de BOM
+*    ls_prod_version-routing_group = gc_routing_type.
+*    ls_prod_version-routing_counter = ls_material-material(8).  " Usar parte del material
+*    ls_prod_version-valid_from = sy-datum.
+*    ls_prod_version-valid_to = '99991231'.
+*    ls_prod_version-descripcion = 'Versión estándar ' && ls_material-grupo_proceso.
+*
+*    APPEND ls_prod_version TO gt_prod_versions.
+*
+*  ENDLOOP.
+*
+*  WRITE: / 'Versiones de producción generadas:', lines( gt_prod_versions ).
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_create_materials
+*----------------------------------------------------------------------*
+FORM  f_create_materials.
+
+  DATA: ls_headdata  TYPE bapimathead,
+        lt_plantdata TYPE TABLE OF bapi_marc,
+        ls_plantdata TYPE bapi_marc,
+        lt_return    TYPE TABLE OF bapiret2,
+        ls_resultado TYPE ty_resultado,
+        lv_matnr     TYPE bapi_mara_ga-material.
+
+  DATA: ls_val_data_out         LIKE  bapi_mbew,
+        ls_valx_data_out        LIKE  bapi_mbewx,
+        gs_val_data             LIKE bapi_mbew_ga,
+        ls_clientedata          TYPE bapi_mara,
+        ls_clientedatax         TYPE bapi_marax,
+        ls_plantadata           TYPE bapi_marc,
+        ls_platadatax           TYPE bapi_marcx,
+        gt_ret_mes              TYPE STANDARD TABLE OF bapireturn,
+        gt_material_description TYPE STANDARD TABLE OF  bapi_makt,
+        wa_material_description TYPE bapi_makt,
+        tt_return               TYPE tt_return.
+
+*llenado de estructura de datos asociadas a las diferentes vistas
+*que se van a habilitar en la creacion del material
+
+*  WRITE: / 'Creando materiales...'.
+  LOOP AT gt_materiales INTO DATA(ls_material).
+
+    CLEAR: ls_headdata, lt_plantdata, lt_return, ls_resultado.
+
+*    ls_resultado-material = ls_material-material.
+*    ls_resultado-step = 'MATERIAL'.
+
+    " Verificar existencia
+    SELECT SINGLE matnr FROM mara INTO @DATA(lv_existe)
+           WHERE matnr = @ls_material-matnr.
+    IF sy-subrc = 0.
+      ls_resultado-status = 'W'.
+      ls_resultado-mensaje = 'Material ya existe'.
+      APPEND ls_resultado TO gt_resultados.
+      CONTINUE.
+    ENDIF.
+
+*    * Read Material Data
+    lv_matnr = ls_material-matnr.
+*    CALL FUNCTION 'BAPI_MATERIAL_GET_ALL'
+*      EXPORTING
+*        material      = lv_matnr
+*        val_area      = ls_material-centro
+*      IMPORTING
+*        valuationdata = gs_val_data
+*      TABLES
+*        return        = gt_ret_mes.
+*    " Evaluar resultado
+*    READ TABLE gt_ret_mes WITH KEY type = 'E' TRANSPORTING NO FIELDS.
+*    IF sy-subrc = 0.
+*      ls_resultado-status = 'E'.
+*      READ TABLE gt_ret_mes INTO DATA(ls_error) WITH KEY type = 'E'.
+*      ls_resultado-mensaje = ls_error-message.
+*      ADD 1 TO gv_contador_error.
+*      APPEND ls_resultado TO gt_resultados.
+*      CONTINUE.
+*    ENDIF.
+
+    MOVE-CORRESPONDING gs_val_data TO ls_val_data_out.
+    MOVE gs_val_data-val_area TO ls_valx_data_out-val_area.
+    MOVE gs_val_data-val_type TO ls_valx_data_out-val_type.
+    ls_valx_data_out-commprice2 = 'X'.
+
+
+    " Llenar datos BAPI
+    CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+      EXPORTING
+        input  = ls_material-matnr
+      IMPORTING
+        output = ls_headdata-material.
+
+    "ls_headdata-material =  ls_material-matnr.
+    ls_headdata-ind_sector = ls_material-mbrsh.
+    ls_headdata-matl_type = ls_material-mtart.
+    ls_headdata-basic_view    = 'X'."datos basicos
+*    ls_headdata-purchase_view = 'X'.
+*    ls_headdata-account_view  = 'X'.
+*    ls_headdata-mrp_view      = 'X'.
+*    ls_headdata-storage_view  = 'X'.
+*datos texto de material
+    REFRESH gt_material_description.
+    wa_material_description-langu        = sy-langu.
+    wa_material_description-langu_iso    = sy-langu.
+    wa_material_description-matl_desc    = ls_material-maktx.
+    APPEND  wa_material_description  TO gt_material_description.
+
+*datos basicosde material
+    ls_clientedata-pur_valkey     = ''."ls_clientdata-pur_valkey.
+    ls_clientedata-matl_group     = '01'."ls_material-matkl."grupo art
+    ls_clientedata-base_uom       = ls_material-meins.
+    ls_clientedata-net_weight     = ls_material-ntgew2."1.
+    ls_clientedata-unit_of_wt     = ls_material-gewei."'KG'.
+
+    ls_clientedata-division       = ls_material-spart.
+    ls_clientedata-old_mat_no     = ls_material-bismt.
+    "ls_clientedata-mat_grp_sm     = ls_material-magrv.
+    ls_clientedata-net_weight     = ls_material-ntgew."peso neto
+    "ls_clientedata-size_dim       = ls_material-groes.
+    ls_clientedata-manu_mat       =  ls_material-mfrpn.
+    "ls_clientedata-item_cat       = <ft>-mtpos_mara.
+    ls_clientedata-trans_grp      = ls_material-tragr.
+
+    ls_clientedatax-matl_group     = 'X'.
+    ls_clientedatax-base_uom       = 'X'.
+*estructura de datos a cargar en la vista de datos basicos de material
+*  bapi_marax-unit_of_wt     = 'X'.
+    ls_clientedatax-division       = 'X'.
+    ls_clientedatax-unit_of_wt     = 'X'.
+    "ls_clientedatax old_mat_no     = 'X'.
+    ls_clientedatax-mat_grp_sm     = 'X'.
+    ls_clientedatax-net_weight     = 'X'.
+    ls_clientedatax-size_dim       = 'X'.
+    ls_clientedatax-manu_mat       =  'X'.
+    ls_clientedatax-item_cat       = 'X'.
+    ls_clientedatax-trans_grp      = 'X'.
+
+
+    " ls_headdata-matl_group = ls_material-grupo_articulos.
+    "ls_headdata-base_uom = 'KG'.
+
+*    IF ls_material-peso_bruto > 0.
+**      ls_headdata-gross_wt = ls_material-peso_bruto.
+**      ls_headdata-unit_of_wt = 'KG'.
+*    ENDIF.
+
+    " Datos de centro
+*    ls_plantdata-plant = ls_material-centro.
+*    ls_plantdata-pur_group = '001'.
+*    ls_plantdata-mrp_type = 'PD'.
+*    ls_plantdata-lot_size = '1'. "EX'.
+*    APPEND ls_plantdata TO lt_plantdata.
+
+    " Crear material
+    BREAK-POINT.
+    CALL FUNCTION 'BAPI_MATERIAL_SAVEDATA'
+      EXPORTING
+        headdata            = ls_headdata
+        clientdata          = ls_clientedata
+        clientdatax         = ls_clientedatax
+        "plantdata           = ls_plantadata
+        "plantdatax          = ls_platadatax
+        " IMPORTING
+      " return              = lt_return.
+      TABLES
+        materialdescription = gt_material_description
+        returnmessages      = tt_return.
+
+
+    " Evaluar resultado
+    READ TABLE tt_return WITH KEY type = 'S' TRANSPORTING NO FIELDS.
+    IF sy-subrc = 0.
+
+      CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+        EXPORTING
+          wait = 'X'.
+*      ls_resultado-status = 'E'.
+*      READ TABLE lt_return INTO ls_error WITH KEY type = 'E'.
+*      ls_resultado-mensaje = ls_error-message.
+*      ADD 1 TO gv_contador_error.
+    ELSE.
+*      ls_resultado-status = 'S'.
+*      ls_resultado-mensaje = 'Material creado OK'.
+*      ADD 1 TO gv_contador_ok.
+*
+*      IF p_commit = 'X' AND p_test = space.
+*        CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+*          EXPORTING
+*            wait = 'X'.
+*      ENDIF.
+    ENDIF.
+*
+*    APPEND ls_resultado TO gt_resultados.
+
+  ENDLOOP.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_create_boms
+*----------------------------------------------------------------------*
+FORM f_create_boms.
+
+  DATA: ls_bom_header TYPE csap_mbom,
+        lt_bom_items  TYPE TABLE OF stpo_api01,
+        ls_bom_item   TYPE stpo_api01,
+        lt_return     TYPE TABLE OF bapiret2,
+        ls_resultado  TYPE ty_resultado,
+        lv_bom_number TYPE stnum.
+
+*  WRITE: / 'Creando BOMs...'.
+
+  " Agrupar componentes por material padre
+  SORT gt_bom_components BY material_padre.
+
+  LOOP AT gt_bom_components INTO DATA(ls_component).
+
+    AT NEW material_padre.
+
+      CLEAR: ls_bom_header, lt_bom_items, lt_return, ls_resultado.
+
+      ls_resultado-material = ls_component-material_padre.
+      ls_resultado-step = 'BOM'.
+
+      " Llenar header BOM
+      ls_bom_header-matnr = ls_component-material_padre.
+      ls_bom_header-werks = p_werks.
+      ls_bom_header-stlan = gc_bom_usage.
+      ls_bom_header-stlal = '01'.
+*      ls_bom_header-base_qty = 1000.  " Base 1000 KG
+*      ls_bom_header-base_unit = 'KG'.
+      ls_bom_header-datuv = sy-datum.
+
+    ENDAT.
+
+    " Agregar componente
+    CLEAR ls_bom_item.
+    ls_bom_item-item_no = ls_component-posicion.
+    ls_bom_item-component = ls_component-componente.
+    ls_bom_item-comp_qty = ls_component-cantidad.
+    ls_bom_item-comp_unit = ls_component-unidad.
+    ls_bom_item-item_categ = ls_component-tipo_posicion.
+    APPEND ls_bom_item TO lt_bom_items.
+
+    AT END OF material_padre.
+
+      " Crear BOM
+      CALL FUNCTION 'CSAP_MAT_BOM_CREATE'
+        EXPORTING
+          material    = ls_bom_header-matnr
+          plant       = ls_bom_header-werks
+          bom_usage   = ls_bom_header-stlan
+          alternative = ls_bom_header-stlal
+          i_stko      = ls_bom_header
+        IMPORTING
+          bom_no      = lv_bom_number
+        TABLES
+          t_stpo      = lt_bom_items
+          return      = lt_return.
+
+      " Evaluar resultado
+      READ TABLE lt_return WITH KEY type = 'E' TRANSPORTING NO FIELDS.
+      IF sy-subrc = 0.
+        ls_resultado-status = 'E'.
+        READ TABLE lt_return INTO DATA(ls_error) WITH KEY type = 'E'.
+        ls_resultado-mensaje = ls_error-message.
+      ELSE.
+        ls_resultado-status = 'S'.
+        ls_resultado-mensaje = 'BOM creado: ' && lv_bom_number.
+
+        IF p_commit = 'X' AND p_test = space.
+          CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+            EXPORTING
+              wait = 'X'.
+        ENDIF.
+      ENDIF.
+
+      APPEND ls_resultado TO gt_resultados.
+      CLEAR lt_bom_items.
+
+    ENDAT.
+
+  ENDLOOP.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_create_routings
+*----------------------------------------------------------------------*
+FORM f_create_routings.
+
+*  DATA: ls_routing_header TYPE bapi_routing_header,
+*        lt_routing_ops    TYPE TABLE OF bapi_routing_operation,
+*        ls_routing_op_api TYPE bapi_routing_operation,
+*        lt_return         TYPE TABLE OF bapiret2,
+*        ls_resultado      TYPE ty_resultado,
+*        lv_routing_group  TYPE plnty,
+*        lv_group_counter  TYPE plnnr.
+*
+*  WRITE: / 'Creando ruteos...'.
+*
+*  " Agrupar operaciones por material
+*  SORT gt_routing_ops BY material.
+*
+*  LOOP AT gt_routing_ops INTO DATA(ls_operation).
+*
+*    AT NEW material.
+*
+*      CLEAR: ls_routing_header, lt_routing_ops, lt_return, ls_resultado.
+*
+*      ls_resultado-material = ls_operation-material.
+*      ls_resultado-step = 'ROUTING'.
+*
+*      " Llenar header del ruteo
+*      ls_routing_header-material = ls_operation-material.
+*      ls_routing_header-plant = p_werks.
+*      ls_routing_header-routing_type = gc_routing_type.
+*      ls_routing_header-valid_from = sy-datum.
+*      ls_routing_header-valid_to = '99991231'.
+*
+*    ENDAT.
+*
+*    " Agregar operación al ruteo
+*    CLEAR ls_routing_op_api.
+*    ls_routing_op_api-operation = ls_operation-operacion.
+*    ls_routing_op_api-work_center = ls_operation-centro_trabajo.
+*    ls_routing_op_api-description = ls_operation-descripcion.
+*    ls_routing_op_api-setup_time = ls_operation-tiempo_setup.
+*    ls_routing_op_api-processing_time = ls_operation-tiempo_proceso.
+*    ls_routing_op_api-time_unit = ls_operation-unidad_tiempo.
+*    APPEND ls_routing_op_api TO lt_routing_ops.
+*
+*    AT END OF material.
+*CALL FUNCTION 'BAPI_ROUTING_CREATE'
+** EXPORTING
+**   TESTRUN                        = ' '
+**   PROFILE                        =
+**   BOMUSAGE                       =
+**   APPLICATION                    =
+** IMPORTING
+**   GROUP                          =
+**   GROUPCOUNTER                   =
+*  TABLES
+*    task                           =
+**   MATERIALTASKALLOCATION         =
+**   SEQUENCE                       =
+**   OPERATION                      =
+**   SUBOPERATION                   =
+**   REFERENCEOPERATION             =
+**   WORKCENTERREFERENCE            =
+**   COMPONENTALLOCATION            =
+**   PRODUCTIONRESOURCE             =
+**   INSPCHARACTERISTIC             =
+**   TEXTALLOCATION                 =
+**   TEXT                           =
+**   RETURN                         =
+**   TASK_SEGMENT                   =
+**   DEPENDENCY_ALLOCATION          =
+**   DEPENDENCY_ORDER               =
+**   DEPENDENCY_DATA                =
+**   DEPENDENCY_DESCRIPTION         =
+**   DEPENDENCY_DOCUMENTATION       =
+**   DEPENDENCY_SOURCE              =
+*          .
+*
+*      " Crear ruteo usando BAPI
+*      CALL FUNCTION 'BAPI_ROUTING_CREATE'
+*       EXPORTING
+*         TESTRUN                        =  p_test
+**         PROFILE                        =
+**         BOMUSAGE                       =
+**         APPLICATION                    =
+*       IMPORTING
+**         GROUP                          =
+**         GROUPCOUNTER                   =
+*        TABLES
+*          task                           =
+**         MATERIALTASKALLOCATION         =
+**         SEQUENCE                       =
+**         OPERATION                      =
+**         SUBOPERATION                   =
+**         REFERENCEOPERATION             =
+**         WORKCENTERREFERENCE            =
+**         COMPONENTALLOCATION            =
+**         PRODUCTIONRESOURCE             =
+**         INSPCHARACTERISTIC             =
+**         TEXTALLOCATION                 =
+**         TEXT                           =
+**         RETURN                         =
+**         TASK_SEGMENT                   =
+**         DEPENDENCY_ALLOCATION          =
+**         DEPENDENCY_ORDER               =
+**         DEPENDENCY_DATA                =
+**         DEPENDENCY_DESCRIPTION         =
+**         DEPENDENCY_DOCUMENTATION       =
+**         DEPENDENCY_SOURCE              =
+*                .
+*
+*      CALL FUNCTION 'BAPI_ROUTING_CREATE'
+*        EXPORTING
+*          routing_header = ls_routing_header
+*          testrun        = p_test
+*        IMPORTING
+*          routing_group  = lv_routing_group
+*          group_counter  = lv_group_counter
+*        TABLES
+*          routing_operations = lt_routing_ops
+*          return         = lt_return.
+*
+*      " Evaluar resultado
+*      READ TABLE lt_return WITH KEY type = 'E' TRANSPORTING NO FIELDS.
+*      IF sy-subrc = 0.
+*        ls_resultado-status = 'E'.
+*        READ TABLE lt_return INTO DATA(ls_error) WITH KEY type = 'E'.
+*        ls_resultado-mensaje = ls_error-message.
+*      ELSE.
+*        ls_resultado-status = 'S'.
+*        ls_resultado-mensaje = 'Ruteo creado: ' && lv_routing_group && '/' && lv_group_counter.
+*
+*        IF p_commit = 'X' AND p_test = space.
+*          CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+*            EXPORTING
+*              wait = 'X'.
+*        ENDIF.
+*      ENDIF.
+*
+*      APPEND ls_resultado TO gt_resultados.
+*      CLEAR lt_routing_ops.
+*
+*    ENDAT.
+*
+*  ENDLOOP.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_create_production_versions
+*----------------------------------------------------------------------*
+FORM f_create_production_versions.
+
+*  DATA: ls_prod_version_api TYPE bapi_production_version,
+*        lt_return           TYPE TABLE OF bapiret2,
+*        ls_resultado        TYPE ty_resultado.
+*
+*  WRITE: / 'Creando versiones de producción...'.
+*
+*  LOOP AT gt_prod_versions INTO DATA(ls_prod_version).
+*
+*    CLEAR: ls_prod_version_api, lt_return, ls_resultado.
+*
+*    ls_resultado-material = ls_prod_version-material.
+*    ls_resultado-step = 'PROD_VERSION'.
+*
+*    " Llenar datos de versión de producción
+*    ls_prod_version_api-material = ls_prod_version-material.
+*    ls_prod_version_api-plant = ls_prod_version-centro.
+*    ls_prod_version_api-production_version = ls_prod_version-version.
+*    ls_prod_version_api-bom_alternative = ls_prod_version-bom_alternative.
+*    ls_prod_version_api-routing_group = ls_prod_version-routing_group.
+*    ls_prod_version_api-routing_counter = ls_prod_version-routing_counter.
+*    ls_prod_version_api-valid_from = ls_prod_version-valid_from.
+*    ls_prod_version_api-valid_to = ls_prod_version-valid_to.
+*    ls_prod_version_api-description = ls_prod_version-descripcion.
+*
+*    " Crear versión de producción
+*    CALL FUNCTION 'BAPI_PRODVERSION_CREATE'
+*      EXPORTING
+*        production_version = ls_prod_version_api
+*        testrun           = p_test
+*      TABLES
+*        return            = lt_return.
+*
+*    " Evaluar resultado
+*    READ TABLE lt_return WITH KEY type = 'E' TRANSPORTING NO FIELDS.
+*    IF sy-subrc = 0.
+*      ls_resultado-status = 'E'.
+*      READ TABLE lt_return INTO DATA(ls_error) WITH KEY type = 'E'.
+*      ls_resultado-mensaje = ls_error-message.
+*    ELSE.
+*      ls_resultado-status = 'S'.
+*      ls_resultado-mensaje = 'Versión producción creada: ' && ls_prod_version-version.
+*
+*      IF p_commit = 'X' AND p_test = space.
+*        CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+*          EXPORTING
+*            wait = 'X'.
+*      ENDIF.
+*    ENDIF.
+*
+*    APPEND ls_resultado TO gt_resultados.
+*
+*  ENDLOOP.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_file_help
+*----------------------------------------------------------------------*
+FORM f_file_help CHANGING cv_file TYPE any.
+
+*  CALL METHOD cl_gui_frontend_services=>file_open_dialog
+*    EXPORTING
+*      file_filter = 'CSV (*.csv)|*.csv|'
+*    CHANGING
+*      file_table  = @DATA(lt_file_table)
+*      rc          = @DATA(lv_rc)
+*      user_action = @DATA(lv_action).
+*  IF lv_rc > 0 AND lines( lt_file_table ) > 0.
+*    READ TABLE lt_file_table INDEX 1 INTO lv_file.
+*    p_file = lv_file.
+*  ENDIF.
+
+*DATA: lt_file_table TYPE filetable,
+*      lv_rc         TYPE i,
+*      lv_action     TYPE i.
+*
+*CALL METHOD cl_gui_frontend_services=>file_open_dialog
+*  EXPORTING
+*    window_title            = 'Seleccionar archivo Excel'
+*    file_filter             = 'Archivos Excel (*.xlsx)|*.xlsx|'
+*  CHANGING
+*    file_table              = lt_file_table
+*    rc                      = lv_rc
+*    user_action             = lv_action
+*  EXCEPTIONS
+*    file_open_dialog_failed = 1
+*    cntl_error              = 2
+*    error_no_gui            = 3
+*    OTHERS                  = 4.
+*
+*IF sy-subrc <> 0 OR lv_rc = 0.
+*  MESSAGE 'No se seleccionó ningún archivo' TYPE 'E'.
+*ENDIF.
+*
+*READ TABLE lt_file_table INDEX 1 INTO p_file.
+*
+  DATA: lt_file_table TYPE filetable,
+        lv_rc         TYPE i.
+
+  CALL METHOD cl_gui_frontend_services=>file_open_dialog
+    EXPORTING
+      window_title      = 'Seleccionar archivo CSV con movimientos'
+      default_extension = 'csv'
+      file_filter       = 'CSV Files (*.csv)|*.csv|Excel Files (*.xlsx)|*.xlsx|All Files (*.*)|*.*|'
+    CHANGING
+      file_table        = lt_file_table
+      rc                = lv_rc.
+
+  IF lv_rc = 1 AND lines( lt_file_table ) > 0.
+    READ TABLE lt_file_table INTO DATA(ls_file) INDEX 1.
+    cv_file = ls_file-filename.
+  ENDIF.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_work_center_help
+*----------------------------------------------------------------------*
+FORM f_work_center_help CHANGING cv_arbpl TYPE any.
+
+  DATA: lt_return_tab TYPE TABLE OF ddshretval,
+        lt_fields     TYPE TABLE OF dfies.
+
+  " Buscar centros de trabajo
+  CALL FUNCTION 'F4IF_FIELD_VALUE_REQUEST'
+    EXPORTING
+      tabname    = 'CRHD'
+      fieldname  = 'ARBPL'
+      searchhelp = 'ARBPL'
+    TABLES
+      return_tab = lt_return_tab.
+
+  IF lines( lt_return_tab ) > 0.
+    READ TABLE lt_return_tab INTO DATA(ls_return) INDEX 1.
+    cv_arbpl = ls_return-fieldval.
+  ENDIF.
+
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_show_results
+*----------------------------------------------------------------------*
+FORM f_show_results.
+
+  DATA: lv_materiales_ok    TYPE i,
+        lv_materiales_error TYPE i,
+        lv_boms_ok          TYPE i,
+        lv_boms_error       TYPE i,
+        lv_routings_ok      TYPE i,
+        lv_routings_error   TYPE i,
+        lv_versions_ok      TYPE i,
+        lv_versions_error   TYPE i.
+
+  " Contar resultados por tipo
+  LOOP AT gt_resultados INTO DATA(ls_resultado).
+    CASE ls_resultado-step.
+      WHEN 'MATERIAL'.
+        IF ls_resultado-status = 'S'.
+          ADD 1 TO lv_materiales_ok.
+        ELSE.
+          ADD 1 TO lv_materiales_error.
+        ENDIF.
+      WHEN 'BOM'.
+        IF ls_resultado-status = 'S'.
+          ADD 1 TO lv_boms_ok.
+        ELSE.
+          ADD 1 TO lv_boms_error.
+        ENDIF.
+      WHEN 'ROUTING'.
+        IF ls_resultado-status = 'S'.
+          ADD 1 TO lv_routings_ok.
+        ELSE.
+          ADD 1 TO lv_routings_error.
+        ENDIF.
+      WHEN 'PROD_VERSION'.
+        IF ls_resultado-status = 'S'.
+          ADD 1 TO lv_versions_ok.
+        ELSE.
+          ADD 1 TO lv_versions_error.
+        ENDIF.
+    ENDCASE.
+  ENDLOOP.
+
+  SKIP 2.
+  WRITE: / '==============================================='.
+  WRITE: / 'RESUMEN COMPLETO DE PROCESAMIENTO'.
+  WRITE: / '==============================================='.
+  SKIP 1.
+
+  " Resumen por componente
+  WRITE: / 'MATERIALES:'.
+  WRITE: /5 'Creados OK:', lv_materiales_ok.
+  WRITE: /5 'Con errores:', lv_materiales_error.
+  SKIP 1.
+
+  WRITE: / 'LISTAS DE MATERIALES (BOM):'.
+  WRITE: /5 'Creadas OK:', lv_boms_ok.
+  WRITE: /5 'Con errores:', lv_boms_error.
+  SKIP 1.
+
+  WRITE: / 'HOJAS DE RUTA (ROUTING):'.
+  WRITE: /5 'Creadas OK:', lv_routings_ok.
+  WRITE: /5 'Con errores:', lv_routings_error.
+  SKIP 1.
+
+  WRITE: / 'VERSIONES DE PRODUCCIÓN:'.
+  WRITE: /5 'Creadas OK:', lv_versions_ok.
+  WRITE: /5 'Con errores:', lv_versions_error.
+  SKIP 1.
+
+  " Status general
+  IF p_test = 'X'.
+    WRITE: / '*** MODO PRUEBA - NO SE GRABARON CAMBIOS ***' COLOR COL_HEADING.
+  ELSE.
+    WRITE: / '*** PROCESAMIENTO PRODUCTIVO COMPLETADO ***' COLOR COL_POSITIVE.
+  ENDIF.
+
+  " Detalle si se solicita
+  IF p_detail = 'X'.
+    SKIP 2.
+    WRITE: / 'DETALLE DE RESULTADOS:'.
+    WRITE: / '======================'.
+    WRITE: / 'Material', 15 'Paso', 30 'Status', 38 'Mensaje'.
+    WRITE: / '--------------------------------------------------------'.
+
+    LOOP AT gt_resultados INTO ls_resultado.
+      CASE ls_resultado-status.
+        WHEN 'S'.
+          WRITE: / ls_resultado-material,
+                   ls_resultado-step,
+                   'OK' COLOR COL_POSITIVE,
+                   ls_resultado-mensaje(50).
+        WHEN 'E'.
+          WRITE: / ls_resultado-material,
+                   ls_resultado-step,
+                   'ERROR' COLOR COL_NEGATIVE,
+                   ls_resultado-mensaje(50).
+        WHEN 'W'.
+          WRITE: / ls_resultado-material,
+                   ls_resultado-step,
+                   'WARNING' COLOR COL_NORMAL,
+                   ls_resultado-mensaje(50).
+      ENDCASE.
+    ENDLOOP.
+  ENDIF.
+
+  " Estadísticas finales
+  SKIP 2.
+  WRITE: / 'ESTADÍSTICAS FINALES:'.
+  WRITE: / '--------------------'.
+  WRITE: / 'Total materiales procesados:', lines( gt_materiales ).
+  WRITE: / 'Total componentes BOM:', lines( gt_bom_components ).
+  WRITE: / 'Total operaciones ruteo:', lines( gt_routing_ops ).
+  WRITE: / 'Total versiones producción:', lines( gt_prod_versions ).
+  WRITE: / 'Total resultados:', lines( gt_resultados ).
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form f_identificar_materiales
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM f_identificar_materiales .
+*
+*  LOOP AT gt_movimientos INTO DATA(ls_mov).
+*
+*    CLEAR gs_lote.
+*
+*    gs_lote-lote_id    = ls_mov-c_llave. " o campo lote real
+*    gs_lote-linea      = ls_mov-c_linea.
+*    gs_lote-grado      = ls_mov-c_grado_acero.
+*    gs_lote-forma      = 'B'. " Puedes derivarlo de otro campo si está en el Excel
+*    gs_lote-capa_galva = 'Z100'. " Igual, puede ser derivado
+*
+*    " Intentar encontrar material equivalente
+*    PERFORM crear_material USING gs_lote-linea
+*                                  gs_lote-grado
+*                                  gs_lote-forma
+*                                  gs_lote-capa_galva
+*                          CHANGING gs_lote-material_sap.
+*
+*    PERFORM obtener_orden_fabricacion
+*      USING    gs_lote-lote_id
+*      CHANGING gs_lote-orden_fabricacion.
+*
+*    APPEND gs_lote TO gt_lotes.
+*
+*  ENDLOOP.
+
+ENDFORM.
+FORM obtener_orden_fabricacion USING    p_lote TYPE string
+                               CHANGING p_aufnr TYPE aufnr.
+
+  SELECT SINGLE aufnr
+    INTO p_aufnr
+    FROM afko
+    WHERE plnbez = p_lote. " O usando otro campo según correspondencia
+
+  IF sy-subrc <> 0.
+    p_aufnr = 'NO ENCONTRADA'.
+  ENDIF.
+
+ENDFORM.
+FORM identificar_material USING    p_linea
+                                   p_grado
+                                   p_forma
+                                   p_capa
+                          CHANGING p_material TYPE matnr.
+
+  CASE p_linea.
+    WHEN 'L1'.
+      IF p_grado = 'G1' AND p_forma = 'B' AND p_capa = 'Z100'.
+        p_material = 'MAT-1001'.
+      ELSEIF p_grado = 'G2' AND p_forma = 'R' AND p_capa = 'Z200'.
+        p_material = 'MAT-1002'.
+      ENDIF.
+    WHEN 'L2'.
+      IF p_grado = 'G1' AND p_forma = 'B' AND p_capa = 'Z100'.
+        p_material = 'MAT-2001'.
+      ENDIF.
+    WHEN OTHERS.
+      p_material = 'NO ENCONTRADO'.
+  ENDCASE.
+
+ENDFORM.
+*---------------------------------------------------------------------*
+* Form: CREAR_MATERIAL
+*---------------------------------------------------------------------*
+FORM crear_material
+  USING    p_linea    TYPE string
+           p_grado    TYPE string
+           p_forma    TYPE string
+           p_capa     TYPE string
+  CHANGING p_material TYPE matnr.
+
+  DATA: lv_matnr_nuevo TYPE matnr,
+        lv_descripcion TYPE maktx.
+
+  " Construir descripción del material
+  CONCATENATE 'SKP_PSQ'
+              p_linea
+              p_forma
+              'ROLLO GALVANIZADO'
+              p_capa
+         INTO lv_descripcion SEPARATED BY space.
+* Header data
+  wa_headdata-matl_type     = 'FERT'.
+  wa_headdata-basic_view    = 'X'.
+  wa_headdata-sales_view    = 'X'.
+  wa_headdata-purchase_view = 'X'.
+*wa_headdata-plant_view    = 'X'.
+
+* Datos básicos del material
+  wa_mara-base_uom    = 'KG'.      " <- Aquí va BASE_UOM
+*wa_mara-ind_sector  = 'M'.       " Sector industrial
+
+* Datos del centro
+  wa_marc-plant       = '1000'.
+  wa_marc-pur_group   = '001'.
+
+* Datos de ventas
+  wa_mvke-sales_org   = '1000'.
+  wa_mvke-distr_chan  = '10'.
+
+* Descripción del material
+  APPEND VALUE #( langu = sy-langu matl_desc = 'ROLLO GALVANIZADO HD60G60G' ) TO lt_makt.
+
+
+
+
+  CALL FUNCTION 'BAPI_MATERIAL_SAVEDATA'
+    EXPORTING
+      headdata            = wa_headdata
+      clientdata          = wa_mara
+      plantdata           = wa_marc
+      salesdata           = wa_mvke
+    TABLES
+      materialdescription = lt_makt
+      return              = lt_return.
+
+* Commit
+  CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+    EXPORTING
+      wait = 'X'.
+
+
+  READ TABLE lt_return WITH KEY type = 'E' INTO DATA(ls_error).
+  IF sy-subrc = 0.
+    p_material = 'ERROR_CREACION'.
+    RETURN.
+  ENDIF.
+
+  CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+    EXPORTING
+      wait = 'X'.
+
+  " Obtener número creado (asignación automática o por lógica interna)
+*  SELECT SINGLE matnr INTO p_material
+*    FROM mara
+*    WHERE maktx = lv_descripcion.
+
+ENDFORM.
