@@ -1,0 +1,53 @@
+*&---------------------------------------------------------------------*
+*& Report Z_BLANQUEAR_ATAUT_V2
+*&---------------------------------------------------------------------*
+*& Programa para blanquear el campo ATAUT en la tabla ZIBINVALUES
+*& Versión 2 con criterios específicos y optimizaciones técnicas
+*& Permite actualización por Material o por Order/Item
+*& Incluye log de ejecuciones en tabla Z personalizada
+*&---------------------------------------------------------------------*
+
+REPORT z_blanquear_ataut_v2.
+
+*----------------------------------------------------------------------*
+* TABLES - Declaración de tablas según especificación
+*----------------------------------------------------------------------*
+*TABLES: mara,
+*        t001w,
+*        cabn,
+*        vbak,
+*        vbap.
+
+* Includes para segmentación de código
+INCLUDE: z_blanquear_ataut_v2_top,    " Declaraciones globales y tipos
+         z_blanquear_ataut_v2_scr,    " Pantalla de selección
+         z_blanquear_ataut_v2_f01.    " Formas y procedimientos
+
+*----------------------------------------------------------------------*
+* AT SELECTION-SCREEN
+*----------------------------------------------------------------------*
+*AT SELECTION-SCREEN.
+*  PERFORM f_validate_sel.
+
+*AT SELECTION-SCREEN OUTPUT.
+*  PERFORM f_modify_scr.
+
+*----------------------------------------------------------------------*
+* INITIALIZATION
+*----------------------------------------------------------------------*
+INITIALIZATION.
+*  PERFORM f_init_val.
+
+*----------------------------------------------------------------------*
+* START-OF-SELECTION
+*----------------------------------------------------------------------*
+START-OF-SELECTION.
+  PERFORM f_main_proc.
+
+*----------------------------------------------------------------------*
+* END-OF-SELECTION
+*----------------------------------------------------------------------*
+END-OF-SELECTION.
+IF NOT gt_log[] is INITIAL.
+   PERFORM f_log_mat.
+ENDIF.
