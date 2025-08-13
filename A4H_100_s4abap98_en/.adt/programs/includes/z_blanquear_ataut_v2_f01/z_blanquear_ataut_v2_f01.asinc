@@ -1,0 +1,890 @@
+*&---------------------------------------------------------------------*
+*& Include Z_BLANQUEAR_ATAUT_V2_F01
+*& Formas y procedimientos - Versión 2.0
+*& Subrutinas con nombres < 30 caracteres, sin cliente en consultas
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  OCULTAR_CAMPOS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM OCULTAR_CAMPOS .
+ LOOP AT SCREEN.
+  IF p_r_mat EQ 'X'.
+
+     IF SCREEN-GROUP1 EQ 'BB'.
+       screen-active = 0.
+       MODIFY SCREEN.
+     ENDIF.
+    IF screen-name = '%_S_ATN_%_APP_%-OPTI_PUSH' or
+      screen-name = '%_S_ATN_%_APP_%-TO_TEXT' or
+      screen-name = 'S_ATN-HIGH' .
+      screen-active = 0.
+       MODIFY SCREEN.
+    ENDIF.
+
+   ELSEIF p_r_oi EQ 'X'.
+
+        IF SCREEN-GROUP1 EQ 'AA'.
+           screen-active = 0.
+           MODIFY SCREEN.
+        ENDIF.
+        IF screen-name = '%_S_ATN2_%_APP_%-OPTI_PUSH' or
+          screen-name = '%_S_ATN2_%_APP_%-TO_TEXT' or
+          screen-name = 'S_ATN2-HIGH' .
+          screen-active = 0.
+           MODIFY SCREEN.
+        ENDIF.
+
+
+
+     ENDIF.
+  ENDLOOP.
+
+
+ENDFORM.                    " OCULTAR_CAMPOS
+
+*----------------------------------------------------------------------*
+* FORM f_init_val - Inicializar valores
+*----------------------------------------------------------------------*
+*FORM f_init_val.
+*  rb_mat = c_x.
+*  p_test = c_x.
+*  p_log = c_x.
+*ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_modify_scr - Modificar pantalla
+*----------------------------------------------------------------------*
+*FORM f_modify_scr.
+*  LOOP AT SCREEN.
+*    IF rb_mat = c_x.
+*      IF screen-group1 = 'ORD'.
+*        screen-active = 0.
+*        screen-invisible = 1.
+*      ENDIF.
+*    ELSEIF rb_ord = c_x.
+*      IF screen-group1 = 'MAT'.
+*        screen-active = 0.
+*        screen-invisible = 1.
+*      ENDIF.
+*    ENDIF.
+*    MODIFY SCREEN.
+*  ENDLOOP.
+*ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_validate_sel - Validar selección
+**----------------------------------------------------------------------*
+*FORM f_validate_sel.
+*  IF rb_mat = c_x.
+*    IF i_matnr[] IS INITIAL.
+*      MESSAGE e001(z_msg) WITH 'Material es obligatorio'.
+*    ENDIF.
+*    gv_mode = c_mode_mat.
+*  ELSEIF rb_ord = c_x.
+*    IF i_vbeln[] IS INITIAL.
+*      MESSAGE e001(z_msg) WITH 'Documento es obligatorio'.
+*    ENDIF.
+*    gv_mode = c_mode_ord.
+*  ENDIF.
+*ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_main_proc - Proceso principal
+*----------------------------------------------------------------------*
+FORM f_main_proc.
+*  PERFORM f_gen_logid.
+
+*  IF gv_mode = c_mode_mat.
+  IF not p_r_mat  is INITIAL.
+    PERFORM f_proc_mat.
+  ELSEIF NOT p_r_oi is INITIAL.
+    PERFORM f_orden.
+  ENDIF.
+
+*  IF p_log = c_x.
+*    PERFORM f_create_log.
+*  ENDIF.
+ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_gen_logid - Generar ID de log
+*----------------------------------------------------------------------*
+*FORM f_gen_logid.
+*  DATA: lv_tstmp TYPE timestampl.
+*
+*  GET TIME STAMP FIELD lv_tstmp.
+*  gv_logid = |{ sy-uname }{ lv_tstmp }|.
+*  gv_logid = gv_logid(20).
+*ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_proc_mat - Procesar Material
+*----------------------------------------------------------------------*
+FORM f_proc_mat.
+
+clear ra_atn.
+Loop at s_atn INTO wa_atn .
+
+  CALL FUNCTION 'CONVERSION_EXIT_ATINN_INPUT'
+        EXPORTING
+          input  = wa_atn-low
+        IMPORTING
+          output = wa_atn-low.  "l_atinn.
+
+  APPEND wa_atn TO ra_atn.
+ENDLOOP.
+
+PERFORM f_inicializar.
+PERFORM f_borrar_1.
+
+PERFORM f_inicializar.
+PERFORM f_borrar_2.
+
+
+*  DATA: ls_matnr LIKE LINE OF i_matnr,
+*        ls_werks LIKE LINE OF i_werks,
+*        ls_atnam LIKE LINE OF i_atnam.
+*
+*  LOOP AT i_matnr INTO ls_matnr.
+*    CLEAR wa_mara.
+*    wa_mara-matnr = ls_matnr-low.
+*
+*    IF i_werks[] IS NOT INITIAL.
+*      LOOP AT i_werks INTO ls_werks.
+*        wa_mara-werks = ls_werks-low.
+*        PERFORM f_proc_mat_werks.
+*      ENDLOOP.
+*    ELSE.
+*      CLEAR wa_mara-werks.
+*      PERFORM f_proc_mat_werks.
+*    ENDIF.
+*  ENDLOOP.
+
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  F_ORDEN
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM F_ORDEN .
+
+clear ra_atn.
+Loop at s_atn2 INTO wa_atn .
+
+    CALL FUNCTION 'CONVERSION_EXIT_ATINN_INPUT'
+          EXPORTING
+            input  = wa_atn-low
+          IMPORTING
+            output = wa_atn-low.  "l_atinn.
+
+    APPEND wa_atn TO ra_atn.
+
+ENDLOOP.
+
+ PERFORM f_inicializar.
+
+ CLEAR: wa_vbap. ",l_atinn.
+
+
+wa_vbap-vbeln = p_ord.
+wa_vbap-posnr = p_pos.
+*wa_vbap-atinn = l_atinn.
+
+SELECT single CUOBJ
+        INTO wa_vbap-cuobj
+        FROM vbap
+       WHERE vbeln eq p_ord
+  AND posnr eq p_pos.
+IF sy-subrc eq 0 and not wa_vbap-cuobj is INITIAL.
+  SELECT instance in_recno
+      INTO TABLE t_ibin
+      FROM zibin
+     WHERE instance EQ wa_vbap-cuobj.
+   IF sy-subrc eq 0.
+     perform f_logic_code.
+   ENDIF.
+else.
+
+    PERFORM f_add_log using  c_nok '' '' p_ord p_pos '' ''.
+
+ENDIF.
+ENDFORM.                    " F_ORDEN
+FORM f_borrar_1.
+
+CLEAR: wa_mara.
+
+wa_mara-matnr = p_mat.
+wa_mara-werks = p_pla.
+
+
+SELECT single mtart cuobf
+        INTO (wa_mara-mtart, wa_mara-cuobf )
+        FROM mara
+       WHERE matnr eq p_mat.
+IF sy-subrc eq 0 and not wa_mara-cuobf is INITIAL..
+
+   SELECT instance in_recno
+      INTO TABLE t_ibin
+      FROM zibin
+     WHERE instance EQ wa_mara-cuobf.
+   IF sy-subrc eq 0.
+     perform f_logic_code.
+   ENDIF.
+ else.
+
+    PERFORM f_add_log using  c_nok p_mat p_pla '' '' '' ''.
+
+ ENDIF.
+ENDFORM.  "f_borrar_1
+FORM f_logic_code.
+
+    Select * from zibinvalues
+      INTO TABLE t_ibinval
+      FOR ALL ENTRIES IN t_ibin
+      WHERE in_recno = t_ibin-in_recno.
+     IF sy-subrc eq 0.
+        SELECT * FROM zibsymbol
+          INTO TABLE t_ibinval_symbol
+          FOR ALL ENTRIES IN t_ibinval
+          WHERE symbol_id = t_ibinval-symbol_id.
+        IF sy-subrc eq 0.
+          t_ibinval_symbol_aux[] = t_ibinval_symbol[].
+
+          DELETE t_ibinval_symbol_aux WHERE atinn not IN ra_atn. " NE l_atinn.
+          IF not t_ibinval_symbol_aux[] is INITIAL.
+
+             Select * from zibinvalues
+              INTO TABLE t_ibinval_2
+              FOR ALL ENTRIES IN t_ibinval  "t_ibinval_symbol_aux
+              WHERE in_recno = t_ibinval-in_recno.
+*               symbol_id = t_ibinval_symbol_aux-symbol_id.
+              IF sy-subrc eq 0.
+                 LOOP AT t_ibinval_2 ASSIGNING <wa_ibinval_2>.
+                    READ TABLE t_ibinval_symbol_aux into wa_ibinval_symbol_aux
+                                WITH KEY symbol_id = <wa_ibinval_2>-symbol_id.
+                    IF sy-subrc eq 0.
+*                             clear <wa_ibinval_2>-ataut.
+                       PERFORM f_delete USING  <wa_ibinval_2>-in_recno
+                                               <wa_ibinval_2>-symbol_id.
+                    ENDIF.
+                 ENDLOOP.
+               ENDIF.
+            ENDIF.
+          ENDIF.
+        ENDIF.
+
+ENDFORM.
+FORM f_delete USING p_in_recno  p_symbol_id.
+
+    " Bloquear tabla
+    CALL FUNCTION 'ENQUEUE_/TENR/E_IBINVALU'
+     EXPORTING
+       MODE_IBINVALUES       = 'E'
+       MANDT                 = SY-MANDT
+       IN_RECNO              = p_in_recno
+*       IN_SEGMCNT            = p_symbol_id
+*       X_IN_RECNO            = ' '
+*       X_IN_SEGMCNT          = ' '
+*       _SCOPE                = '2'
+*       _WAIT                 = ' '
+*       _COLLECT              = ' '
+     EXCEPTIONS
+       FOREIGN_LOCK          = 1
+       SYSTEM_FAILURE        = 2
+       OTHERS                = 3.
+
+  IF sy-subrc = 0.
+
+    " Actualizar el campo ATAUT
+    UPDATE zibinvalues
+       SET ataut = ''
+     WHERE in_recno  = p_in_recno
+       AND symbol_id = p_symbol_id.
+
+    IF sy-subrc = 0.
+      COMMIT WORK AND WAIT.
+
+       PERFORM f_add_log using
+              c_ok p_mat p_pla  p_ord p_pos p_in_recno p_symbol_id.
+*        gs_log-icon      = '@08@'.
+*        gs_log-erdat     = sy-datum.
+*        gs_log-erzet     = sy-uzeit.
+*        gs_log-usuario   = sy-uname.
+*        gs_log-matnr     = p_mat.
+*        gs_log-werks     = p_pla.
+*        gs_log-atributo  = p_atn.
+*        gs_log-orden     = p_ord.
+*        gs_log-pos       = p_pos.
+*        gs_log-in_recno  = p_in_recno.
+*        gs_log-symbol_id = p_symbol_id.
+*
+*        APPEND gs_log TO gt_log.
+
+*        TRY.
+*        INSERT  /TENR/SD_LOG_JUS FROM gs_log.
+*
+*         CATCH CX_SY_DYNAMIC_OSQL_ERROR.
+*            MESSAGE text-001 TYPE 'I'.
+*         ENDTRY.
+
+*         clear gs_log.
+    ENDIF.
+
+    " Desbloquear
+    CALL FUNCTION 'DEQUEUE_/TENR/E_IBINVALU'
+     EXPORTING
+       MODE_IBINVALUES       = 'E'
+       MANDT                 = SY-MANDT
+       IN_RECNO              = p_in_recno
+*       IN_SEGMCNT            =
+*       X_IN_RECNO            = ' '
+*       X_IN_SEGMCNT          = ' '
+*       _SCOPE                = '3'
+*       _SYNCHRON             = ' '
+*       _COLLECT              = ' '
+              .
+
+   endif.
+ENDFORM.
+
+Form f_add_log using  p_icon
+                      p_matnr
+                      p_plan
+                      p_orden
+                      p_posic
+                      p_in_recno
+                      p_symbol_id.
+
+  clear gs_log.
+
+  gs_log-estatus   = p_icon.
+  gs_log-erdat     = sy-datum.
+  gs_log-erzet     = sy-uzeit.
+  gs_log-usuario   = sy-uname.
+  gs_log-matnr     = p_matnr.
+  gs_log-werks     = p_plan.
+  gs_log-orden     = p_orden.
+  gs_log-pos       = p_posic.
+  gs_log-in_recno  = p_in_recno.
+  gs_log-symbol_id = p_symbol_id.
+
+  APPEND gs_log TO gt_log.
+
+    TRY.
+        INSERT  ZSD_LOG_JUS FROM gs_log.
+
+         CATCH CX_SY_DYNAMIC_OSQL_ERROR.
+            MESSAGE text-001 TYPE 'I'.
+    ENDTRY.
+
+ENDFORM.
+FORM f_inicializar.
+CLEAR:  t_mara ,
+        t_ibin,
+        t_ibinval,
+        t_ibinval_2,
+        t_ibinval_symbol,
+        t_ibinval_symbol_aux,
+        l_cuobj.
+ENDFORM.
+FORM f_borrar_2.
+DATA: wa_cond     type string,
+      it_cond     type table of string.
+
+concatenate 'matnr = ''' wa_mara-matnr '''' into wa_cond.
+    append wa_cond to it_cond.clear  wa_cond.
+ IF not wa_mara-werks is INITIAL.
+    concatenate ' and werks = ''' wa_mara-werks '''' into wa_cond.
+    append wa_cond to it_cond.clear  wa_cond.
+ ENDIF.
+
+  SELECT single cuobj from marc into l_cuobj
+    WHERE (it_cond).
+*    matnr = wa_mara-matnr
+*    and werks = wa_mara-werks.
+  If sy-subrc eq 0 and not l_cuobj is INITIAL.
+
+     SELECT instance in_recno FROM ZIBIN
+       into TABLE t_ibin
+       WHERE instance = l_cuobj.
+
+      If sy-subrc eq 0.
+         perform f_logic_code.
+      ENDIF.
+  else.
+
+    PERFORM f_add_log using   c_nok p_mat p_pla '' '' '' ''.
+  ENDIF.
+ENDFORM.                    " F_BORRAR_2
+
+FORM f_log_mat.
+
+  " Definir catálogo de campos
+  PERFORM add_fieldcat USING 'ESTATUS'    text-009. "  'Estatus'.
+  PERFORM add_fieldcat USING 'ERDAT'      text-002. "'Fecha'.
+  PERFORM add_fieldcat USING 'ERZET'      text-003. "Hora'.
+  PERFORM add_fieldcat USING 'USUARIO'    text-004. "'Usuario'.
+  PERFORM add_fieldcat USING 'MATNR'      text-005. "'Material'.
+  PERFORM add_fieldcat USING 'WERKS'      text-006. "'Planta'.
+  PERFORM add_fieldcat USING 'ORDEN'      text-007. "'ODM'.
+  PERFORM add_fieldcat USING 'POS'        text-008. "'ODM Item'.
+*  PERFORM add_fieldcat USING 'ATRIBUTO'   text-009. "'Atributo'.
+  PERFORM add_fieldcat USING 'IN_RECNO'   text-010. "'Unique record number'.
+  PERFORM add_fieldcat USING 'SYMBOL_ID'  text-011. "'Numerical identifier for a symbol'.
+
+  gs_layout-colwidth_optimize = 'X'.
+  gs_layout-zebra             = 'X'.
+
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      i_callback_program = sy-repid
+      is_layout          = gs_layout
+      it_fieldcat        = gt_fieldcat
+    TABLES
+      t_outtab           = gt_log
+    EXCEPTIONS
+      others             = 1.
+
+ENDFORM.
+*---------------------------------------------------------------------*
+*       Form  add_fieldcat                                            *
+*---------------------------------------------------------------------*
+FORM add_fieldcat USING p_fieldname TYPE slis_fieldname
+                        p_seltext   TYPE string.
+
+  CLEAR gs_fieldcat.
+  gs_fieldcat-fieldname = p_fieldname.
+  gs_fieldcat-seltext_m = p_seltext.
+  gs_fieldcat-col_pos   = lines( gt_fieldcat ) + 1.
+  APPEND gs_fieldcat TO gt_fieldcat.
+
+ENDFORM.
+
+
+
+*----------------------------------------------------------------------*
+* FORM f_proc_mat_werks - Procesar Material+Werks
+*----------------------------------------------------------------------*
+*FORM f_proc_mat_werks.
+*  DATA: ls_atnam LIKE LINE OF i_atnam.
+*
+*  LOOP AT i_atnam INTO ls_atnam.
+*    PERFORM f_get_atinn USING ls_atnam-low CHANGING i_atinn.
+*
+*    IF i_atinn IS NOT INITIAL.
+*      wa_mara-atinn = i_atinn.
+*
+*      PERFORM f_get_mara.
+*
+*      " Procesar MARA (CUOBF)
+*      IF wa_mara-cuobf IS NOT INITIAL.
+*        PERFORM f_proc_cuobj USING wa_mara-cuobf.
+*      ENDIF.
+*
+*      " Procesar MARC (CUOBJ)
+*      PERFORM f_proc_marc.
+*    ENDIF.
+*  ENDLOOP.
+*ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_get_atinn - Obtener ATINN desde ATNAM
+**----------------------------------------------------------------------*
+*FORM f_get_atinn USING iv_atnam TYPE atnam
+*                 CHANGING ev_atinn TYPE atinn.
+*  CLEAR ev_atinn.
+*
+*  SELECT SINGLE atinn
+*    FROM cabn
+*    INTO ev_atinn
+*    WHERE atnam = iv_atnam.
+*
+*  IF sy-subrc <> 0.
+*    MESSAGE i001(z_msg) WITH |Característica { iv_atnam } no encontrada|.
+*  ENDIF.
+*ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_get_mara - Obtener datos MARA
+**----------------------------------------------------------------------*
+*FORM f_get_mara.
+*  SELECT SINGLE mtart, cuobf
+*    FROM mara
+*    INTO (@wa_mara-mtart, @wa_mara-cuobf)
+*    WHERE matnr = @wa_mara-matnr.
+*
+*  IF sy-subrc <> 0.
+*    MESSAGE i001(z_msg) WITH |Material { wa_mara-matnr } no encontrado|.
+*  ENDIF.
+*ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_proc_marc - Procesar MARC
+*----------------------------------------------------------------------*
+*FORM f_proc_marc.
+*  CLEAR wa_marc.
+*  wa_marc-matnr = wa_mara-matnr.
+*  wa_marc-werks = wa_mara-werks.
+*
+*  IF wa_mara-werks IS NOT INITIAL.
+*    SELECT SINGLE cuobj
+*      FROM marc
+*      INTO wa_marc-cuobj
+*      WHERE matnr = wa_marc-matnr
+*        AND werks = wa_marc-werks.
+*  ELSE.
+*    SELECT SINGLE cuobj
+*      FROM marc
+*      INTO wa_marc-cuobj
+*      WHERE matnr = wa_marc-matnr.
+*  ENDIF.
+*
+*  IF wa_marc-cuobj IS NOT INITIAL.
+*    PERFORM f_proc_cuobj USING wa_marc-cuobj.
+*  ENDIF.
+*ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_proc_cuobj - Procesar objeto configuración (sin cliente)
+*----------------------------------------------------------------------*
+*FORM f_proc_cuobj USING iv_cuobj TYPE cuobj.
+*  CLEAR: p_t_ibin, p_t_ibinval, p_t_ibinval_symbol,
+*         p_t_ibinval_symbol_aux.
+*
+*  " 1. Verificar CUOBJ en ZIBIN (sin cliente)
+*  SELECT instance, in_recno
+*    FROM zibin
+*    INTO TABLE @p_t_ibin
+*    WHERE instance = @iv_cuobj.
+*
+*  IF p_t_ibin[] IS NOT INITIAL.
+*    " 2. Obtener ZIBINVALUES (sin cliente)
+*    SELECT in_recno, symbol_id, ataut", atinn, atwrt
+*      FROM zibinvalues
+*      INTO TABLE @p_t_ibinval
+*      FOR ALL ENTRIES IN @p_t_ibin
+*      WHERE in_recno = @p_t_ibin-in_recno.
+*
+*    IF p_t_ibinval[] IS NOT INITIAL.
+*      " 3. Obtener ZIBSYMBOL (sin cliente, sin in_recno)
+*      SELECT symbol_id, atinn
+*        FROM zibsymbol
+*        INTO TABLE @p_t_ibinval_symbol
+*        FOR ALL ENTRIES IN @p_t_ibinval
+*        WHERE symbol_id = @p_t_ibinval-symbol_id.
+*
+*      " 4. Filtrar por ATINN
+*      LOOP AT p_t_ibinval_symbol ASSIGNING <fs_ibsymbol>.
+*        IF <fs_ibsymbol>-atinn = wa_mara-atinn.
+*          APPEND <fs_ibsymbol> TO p_t_ibinval_symbol_aux.
+*        ENDIF.
+*      ENDLOOP.
+*
+*      " 5. Actualizar ZIBINVALUES
+*      IF p_t_ibinval_symbol_aux[] IS NOT INITIAL.
+*        PERFORM f_upd_ataut.
+*      ENDIF.
+*    ENDIF.
+*  ENDIF.
+*ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_upd_ataut - Actualizar ATAUT
+*----------------------------------------------------------------------*
+*FORM f_upd_ataut.
+*  DATA: lv_upd TYPE i.
+
+*  IF p_test = c_x.
+*    MESSAGE i001(z_msg) WITH |TEST: { lines( p_t_ibinval_symbol_aux ) } registros|.
+*    RETURN.
+*  ENDIF.
+
+  " Actualizar sin cliente
+*  LOOP AT p_t_ibinval_symbol_aux ASSIGNING <fs_ibsymbol>.
+*    " Buscar registros coincidentes en p_t_ibinval
+*    LOOP AT p_t_ibinval ASSIGNING <fs_ibinval>
+*      WHERE symbol_id = <fs_ibsymbol>-symbol_id.
+*
+*      UPDATE zibinvalues
+*         SET ataut = space
+*       WHERE in_recno = <fs_ibinval>-in_recno
+*         AND symbol_id = <fs_ibinval>-symbol_id.
+*
+*      IF sy-subrc = 0.
+*        lv_upd = lv_upd + 1.
+*      ENDIF.
+*    ENDLOOP.
+*  ENDLOOP.
+*
+*  COMMIT WORK.
+*
+*  gv_recs = gv_recs + lv_upd.
+*  MESSAGE i001(z_msg) WITH |Actualizados { lv_upd } registros|.
+*ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_proc_ord - Procesar Order/Item
+*----------------------------------------------------------------------*
+*FORM f_proc_ord.
+*  DATA: ls_vbeln LIKE LINE OF i_vbeln,
+*        ls_posnr LIKE LINE OF i_posnr,
+*        ls_atnam LIKE LINE OF i_atna2.
+*
+*  LOOP AT i_vbeln INTO ls_vbeln.
+*    CLEAR wa_vbap.
+*    wa_vbap-vbeln = ls_vbeln-low.
+*
+*    IF i_posnr[] IS NOT INITIAL.
+*      LOOP AT i_posnr INTO ls_posnr.
+*        wa_vbap-posnr = ls_posnr-low.
+*        PERFORM f_proc_ord_pos.
+*      ENDLOOP.
+*    ELSE.
+*      CLEAR wa_vbap-posnr.
+*      PERFORM f_proc_ord_pos.
+*    ENDIF.
+*  ENDLOOP.
+*ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_proc_ord_pos - Procesar Order+Posición
+*----------------------------------------------------------------------*
+*FORM f_proc_ord_pos.
+*  DATA: ls_atnam LIKE LINE OF i_atna2.
+*
+*  LOOP AT i_atna2 INTO ls_atnam.
+*    PERFORM f_get_atinn USING ls_atnam-low CHANGING i_atinn.
+*
+*    IF i_atinn IS NOT INITIAL.
+*      wa_vbap-atinn = i_atinn.
+*
+*      PERFORM f_get_vbap.
+*
+*      " Procesar VBAP (CUOBJ) - Nota: especificación dice ZIBIN
+*      IF wa_vbap-cuobj IS NOT INITIAL.
+*        PERFORM f_proc_cuobj_vbap USING wa_vbap-cuobj.
+*      ENDIF.
+*    ENDIF.
+*  ENDLOOP.
+*ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_get_vbap - Obtener datos VBAP
+*----------------------------------------------------------------------*
+*FORM f_get_vbap.
+*  IF wa_vbap-posnr IS NOT INITIAL.
+*    SELECT SINGLE cuobj
+*      FROM vbap
+*      INTO wa_vbap-cuobj
+*      WHERE vbeln = wa_vbap-vbeln
+*        AND posnr = wa_vbap-posnr.
+*  ELSE.
+*    SELECT SINGLE cuobj
+*      FROM vbap
+*      INTO wa_vbap-cuobj
+*      WHERE vbeln = wa_vbap-vbeln.
+*  ENDIF.
+*
+*  IF sy-subrc <> 0.
+*    MESSAGE i001(z_msg) WITH |Doc { wa_vbap-vbeln } pos { wa_vbap-posnr } no encontrado|.
+*  ENDIF.
+*ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_proc_cuobj_vbap - Procesar cuobj VBAP (sin cliente)
+*----------------------------------------------------------------------*
+*FORM f_proc_cuobj_vbap USING iv_cuobj TYPE cuobj.
+*  CLEAR: p_t_ibin, p_t_ibinval, p_t_ibinval_symbol,
+*         p_t_ibinval_symbol_aux.
+*
+*  " 1. Verificar CUOBJ en ZIBIN (sin cliente)
+*  SELECT instance, in_recno
+*    FROM zibin
+*    INTO TABLE @p_t_ibin
+*    WHERE instance = @iv_cuobj.
+*
+*  IF p_t_ibin[] IS NOT INITIAL.
+*    " 2. Obtener ZIBINVALUES (sin cliente)
+*    SELECT in_recno, symbol_id, ataut", atinn, atwrt
+*      FROM zibinvalues
+*      INTO TABLE @p_t_ibinval
+*      FOR ALL ENTRIES IN @p_t_ibin
+*      WHERE in_recno = @p_t_ibin-in_recno.
+*
+*    IF p_t_ibinval[] IS NOT INITIAL.
+*      " 3. Obtener ZIBSYMBOL (sin cliente, sin in_recno)
+*      SELECT symbol_id, atinn
+*        FROM zibsymbol
+*        INTO TABLE @p_t_ibinval_symbol
+*        FOR ALL ENTRIES IN @p_t_ibinval
+*        WHERE symbol_id = @p_t_ibinval-symbol_id.
+*
+*      " 4. Filtrar por ATINN
+*      LOOP AT p_t_ibinval_symbol ASSIGNING <fs_ibsymbol>.
+*        IF <fs_ibsymbol>-atinn = wa_vbap-atinn.
+*          APPEND <fs_ibsymbol> TO p_t_ibinval_symbol_aux.
+*        ENDIF.
+*      ENDLOOP.
+*
+*      " 5. Actualizar ZIBINVALUES
+*      IF p_t_ibinval_symbol_aux[] IS NOT INITIAL.
+*        PERFORM f_upd_ataut_vbap.
+*      ENDIF.
+*    ENDIF.
+*  ENDIF.
+*ENDFORM.
+*
+**----------------------------------------------------------------------*
+** FORM f_upd_ataut_vbap - Actualizar ATAUT para VBAP
+**----------------------------------------------------------------------*
+*FORM f_upd_ataut_vbap.
+*  DATA: lv_upd TYPE i.
+*
+**  IF p_test = c_x.
+**    MESSAGE i001(z_msg) WITH |TEST: { lines( p_t_ibinval_symbol_aux ) } registros|.
+**    RETURN.
+**  ENDIF.
+*
+*  " Actualizar sin cliente
+*  LOOP AT p_t_ibinval_symbol_aux ASSIGNING <fs_ibsymbol>.
+*    " Buscar registros coincidentes en p_t_ibinval
+*    LOOP AT p_t_ibinval ASSIGNING <fs_ibinval>
+*      WHERE symbol_id = <fs_ibsymbol>-symbol_id.
+*
+*      UPDATE zibinvalues
+*         SET ataut = space
+*       WHERE in_recno = <fs_ibinval>-in_recno
+*         AND symbol_id = <fs_ibinval>-symbol_id.
+*
+*      IF sy-subrc = 0.
+*        lv_upd = lv_upd + 1.
+*      ENDIF.
+*    ENDLOOP.
+*  ENDLOOP.
+*
+*  COMMIT WORK.
+*
+*  gv_recs = gv_recs + lv_upd.
+*  MESSAGE i001(z_msg) WITH |Actualizados { lv_upd } registros para Doc { wa_vbap-vbeln }|.
+*ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_create_log - Crear log
+*----------------------------------------------------------------------*
+*FORM f_create_log.
+*  DATA: ls_log TYPE ty_log.
+
+*  ls_log-log_id = gv_logid.
+*  ls_log-exec_date = sy-datum.
+*  ls_log-exec_time = sy-uzeit.
+*  ls_log-exec_user = sy-uname.
+*  ls_log-mode_type = gv_mode.
+*  ls_log-records_upd = gv_recs.
+*  ls_log-status = c_stat_ok.
+*  ls_log-created_on = sy-datum.
+*  ls_log-created_at = sy-uzeit.
+*  ls_log-created_by = sy-uname.
+
+*  IF gv_mode = c_mode_mat.
+*    READ TABLE i_matnr INDEX 1 INTO DATA(ls_matnr).
+*    IF sy-subrc = 0.
+*      ls_log-material = ls_matnr-low.
+*    ENDIF.
+*    READ TABLE i_werks INDEX 1 INTO DATA(ls_werks).
+*    IF sy-subrc = 0.
+*      ls_log-plant = ls_werks-low.
+*    ENDIF.
+*    READ TABLE i_atnam INDEX 1 INTO DATA(ls_atnam).
+*    IF sy-subrc = 0.
+*      ls_log-atnam = ls_atnam-low.
+*      PERFORM f_get_atinn USING ls_atnam-low CHANGING ls_log-atinn.
+*    ENDIF.
+*  ELSE.
+*    READ TABLE i_vbeln INDEX 1 INTO DATA(ls_vbeln).
+*    IF sy-subrc = 0.
+*      ls_log-vbeln = ls_vbeln-low.
+*    ENDIF.
+*    READ TABLE i_posnr INDEX 1 INTO DATA(ls_posnr).
+*    IF sy-subrc = 0.
+*      ls_log-posnr = ls_posnr-low.
+*    ENDIF.
+*    READ TABLE i_atna2 INDEX 1 INTO DATA(ls_atna2).
+*    IF sy-subrc = 0.
+*      ls_log-atnam = ls_atna2-low.
+*      PERFORM f_get_atinn USING ls_atna2-low CHANGING ls_log-atinn.
+*    ENDIF.
+*  ENDIF.
+*
+*  ls_log-message = |Proceso OK - { gv_recs } registros actualizados|.
+*
+*  PERFORM f_ins_log USING ls_log.
+*
+*  MESSAGE i001(z_msg) WITH |Log ID: { gv_logid } - { gv_recs } registros|.
+*ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_ins_log - Insertar log
+*----------------------------------------------------------------------*
+*FORM f_ins_log USING is_log TYPE ty_log.
+*  " Insertar en tabla Z de log (cuando esté creada)
+*  " INSERT z_ataut_log_v2 FROM is_log.
+*  " COMMIT WORK.
+*
+*  APPEND is_log TO gt_log.
+*ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_show_results - Mostrar resultados
+*----------------------------------------------------------------------*
+*FORM f_show_results.
+*  IF gv_recs > 0.
+*    MESSAGE i001(z_msg) WITH |Completado. Registros: { gv_recs }|.
+*  ELSE.
+*    MESSAGE i001(z_msg) WITH 'Sin registros procesados'.
+*  ENDIF.
+*
+**  IF gt_log[] IS NOT INITIAL AND p_log = c_x.
+*    PERFORM f_show_alv.
+**  ENDIF.
+*ENDFORM.
+
+*----------------------------------------------------------------------*
+* FORM f_show_alv - Mostrar ALV de log
+*----------------------------------------------------------------------*
+*FORM f_show_alv.
+*  DATA: lo_alv TYPE REF TO cl_salv_table.
+*
+*  TRY.
+*      cl_salv_table=>factory(
+*        IMPORTING
+*          r_salv_table = lo_alv
+*        CHANGING
+*          t_table      = gt_log ).
+*
+*      DATA(lo_cols) = lo_alv->get_columns( ).
+*      lo_cols->set_optimize( 'X' ).
+*
+*      DATA(lo_col) = lo_cols->get_column( 'LOG_ID' ).
+*      lo_col->set_short_text( 'Log ID' ).
+*
+*      lo_col = lo_cols->get_column( 'MODE_TYPE' ).
+*      lo_col->set_short_text( 'Modo' ).
+*
+*      lo_col = lo_cols->get_column( 'RECORDS_UPD' ).
+*      lo_col->set_short_text( 'Regs' ).
+*
+*      lo_alv->display( ).
+*
+*    CATCH cx_salv_msg.
+*      MESSAGE e001(z_msg) WITH 'Error ALV'.
+*  ENDTRY.
+*ENDFORM.

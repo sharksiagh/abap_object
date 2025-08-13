@@ -1,0 +1,170 @@
+*&---------------------------------------------------------------------*
+*& Include Z_BLANQUEAR_ATAUT_V2_TOP
+*& Declaraciones globales, constantes y tipos - Versión 2.0
+*& Con especificaciones técnicas específicas
+*&---------------------------------------------------------------------*
+TABLES: MARA,IBIN,zibinvalues ,zibsymbol,cabn  .
+TYPE-POOLS: slis.
+
+CONSTANTS: c_nok(4) type C VALUE  '@0A@',
+           c_ok(4)  type C VALUE '@08@'.
+TYPES: BEGIN OF ty_log.
+*  estatus type char04.
+  include type ZSD_LOG_JUS.
+     TYPES:  END OF ty_log.
+
+DATA: gt_log TYPE TABLE OF ty_log, "/TENR/SD_LOG_JUS,
+      gs_log TYPE ty_log."/TENR/SD_LOG_JUS.
+
+DATA: gt_fieldcat TYPE slis_t_fieldcat_alv,
+      gs_fieldcat TYPE slis_fieldcat_alv,
+      gs_layout   TYPE slis_layout_alv.
+
+RANGES: ra_atn                 FOR cabn-atnam.
+
+DATA  wa_atn                       LIKE LINE OF ra_atn.
+DATA:
+*      *l_atinn TYPE atinn,
+      l_cuobj type cuobj.
+
+TYPES: BEGIN OF ty_mara,
+  matnr TYPE matnr,
+  werks TYPE werks_d,
+*  atinn TYPE atinn,
+  mtart TYPE mtart,
+  cuobf TYPE CUOBM,
+  END OF ty_mara,
+  BEGIN OF ty_ibin,
+    instance TYPE ib_instance,
+    in_recno TYPE ib_recno,
+    END OF ty_ibin.
+  DATA: t_mara type STANDARD TABLE OF ty_mara,
+        wa_mara TYPE ty_mara,
+        t_ibin  type STANDARD TABLE OF ty_ibin,
+        wa_ibin type ty_ibin,
+        t_ibinval   TYPE TABLE OF zibinvalues,
+        t_ibinval_2 TYPE TABLE OF zibinvalues,
+        t_ibinval_symbol TYPE TABLE OF zibsymbol,
+        t_ibinval_symbol_aux TYPE TABLE OF zibsymbol,
+        wa_ibinval_symbol TYPE zibsymbol,
+        wa_ibinval_symbol_aux TYPE zibsymbol.
+
+FIELD-SYMBOLS: <wa_ibinval_2> type zibinvalues.
+
+
+TYPES: BEGIN OF ty_vbap,
+  vbeln TYPE vbeln,
+  posnr TYPE posnr,
+*  atinn TYPE atinn,
+  cuobj TYPE CUOBJ_VA,
+  END OF ty_vbap.
+  DATA: wa_vbap TYPE ty_vbap.
+*----------------------------------------------------------------------*
+* TYPES - Tipos de datos optimizados
+*----------------------------------------------------------------------*
+" Estructura para datos de material (opción Material)
+*TYPES: BEGIN OF ty_wa_mara,
+*         matnr TYPE matnr,        " Material
+*         werks TYPE werks_d,      " Centro
+*         atinn TYPE atinn,        " Número interno característica
+*         mtart TYPE mtart,        " Tipo de material
+*         cuobf TYPE cuobm,        " Objeto config. usando elemento CUOBM
+*       END OF ty_wa_mara.
+*
+*" Estructura para datos de MARC
+*TYPES: BEGIN OF ty_wa_marc,
+*         matnr TYPE matnr,        " Material
+*         werks TYPE werks_d,      " Centro
+*         cuobj TYPE cuobj,        " Objeto de configuración (MARC)
+*       END OF ty_wa_marc.
+*
+*" Estructura para datos de orden/item (opción Order/Item)
+*TYPES: BEGIN OF ty_wa_vbap,
+*         vbeln TYPE vbeln_va,     " Documento de ventas
+*         posnr TYPE posnr_va,     " Posición del documento de ventas
+*         atinn TYPE atinn,        " Número interno característica
+*         cuobj TYPE cuobj,        " Objeto de configuración
+*       END OF ty_wa_vbap.
+*
+*" Estructura para tabla ZIBIN (sin cliente)
+*TYPES: BEGIN OF ty_zibin,
+*         instance TYPE c LENGTH 30,  " Instancia
+*         in_recno TYPE zibinvalues-in_recno,  " Número de registro
+*       END OF ty_zibin.
+*TYPES: tt_zibin TYPE TABLE OF ty_zibin.
+*
+*" Estructura para tabla ZIBINVALUES (sin cliente)
+*TYPES: BEGIN OF ty_zibinval,
+*         in_recno  TYPE c LENGTH 22,  " Número de registro
+*         symbol_id TYPE zibsymbol-symbol_id,  " ID de símbolo
+*         ataut     TYPE c LENGTH 30,  " Campo a blanquear
+*         atinn     TYPE atinn,        " Número interno (no ref ZBINVALUES)
+*         atwrt     TYPE c LENGTH 30,  " Valor (no ref ZBINVALUES)
+*       END OF ty_zibinval.
+*TYPES: tt_zibinval TYPE TABLE OF ty_zibinval.
+*
+*" Estructura para tabla ZIBSYMBOL (sin cliente, sin in_recno)
+*TYPES: BEGIN OF ty_zibsymbol,
+*         symbol_id TYPE zibsymbol-symbol_id,  " ID de símbolo
+*         atinn     TYPE atinn,        " Número interno característica
+*       END OF ty_zibsymbol.
+*TYPES: tt_zibsymbol TYPE TABLE OF ty_zibsymbol.
+*
+*" Tipo para log de ejecuciones
+**TYPES: BEGIN OF ty_log,
+**         log_id      TYPE c LENGTH 20,
+**         exec_date   TYPE sy-datum,
+**         exec_time   TYPE sy-uzeit,
+**         exec_user   TYPE sy-uname,
+**         mode_type   TYPE c LENGTH 1,  " M=Material, O=Order
+**         material    TYPE matnr,
+**         plant       TYPE werks_d,
+**         vbeln       TYPE vbeln_va,    " Documento de ventas
+**         posnr       TYPE posnr_va,    " Posición
+**         atnam       TYPE atnam,       " Nombre característica
+**         atinn       TYPE atinn,       " Número interno característica
+**         records_upd TYPE i,
+**         status      TYPE c LENGTH 1,  " S=Success, E=Error
+**         message     TYPE c LENGTH 100,
+**         created_on  TYPE sy-datum,
+**         created_at  TYPE sy-uzeit,
+**         created_by  TYPE sy-uname,
+**       END OF ty_log.
+**
+**TYPES: tt_log TYPE TABLE OF ty_log.
+*
+**----------------------------------------------------------------------*
+** CONSTANTS - Constantes
+**----------------------------------------------------------------------*
+*CONSTANTS: c_mode_mat TYPE c VALUE 'M',
+*           c_mode_ord TYPE c VALUE 'O',
+*           c_stat_ok  TYPE c VALUE 'S',
+*           c_stat_err TYPE c VALUE 'E',
+*           c_x        TYPE c VALUE 'X'.
+*
+**----------------------------------------------------------------------*
+** DATA - Variables globales con nombres cortos
+**----------------------------------------------------------------------*
+*DATA: "gt_log                 TYPE tt_log,
+*      gv_mode                TYPE c LENGTH 1,
+*      gv_recs                TYPE i,
+*      gv_logid               TYPE c LENGTH 20,
+*      " Estructuras de trabajo
+*      wa_mara                TYPE ty_wa_mara,
+*      wa_marc                TYPE ty_wa_marc,
+*      wa_vbap                TYPE ty_wa_vbap,
+*      " Tablas internas (nombres cortos según especificación)
+*      p_t_ibin               TYPE tt_zibin,
+*      p_t_ibinval            TYPE tt_zibinval,
+*      p_t_ibinval_symbol     TYPE tt_zibsymbol,
+*      p_t_ibinval_symbol_aux TYPE tt_zibsymbol,
+*      " Variables auxiliares
+*      i_atinn                TYPE atinn.
+*
+**----------------------------------------------------------------------*
+** FIELD-SYMBOLS
+**----------------------------------------------------------------------*
+*FIELD-SYMBOLS: <fs_ibin>     TYPE ty_zibin,
+*               <fs_ibinval>  TYPE ty_zibinval,
+*               <fs_ibsymbol> TYPE ty_zibsymbol,
+*               <fs_log>      TYPE ty_log.
