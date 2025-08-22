@@ -1,0 +1,532 @@
+*---------------------------------------------------------------------*
+*       FORM TRANSAKTION_INIT                                         *
+*---------------------------------------------------------------------*
+*       Startwerte der Transaktion auf dem Anforderungsbild setzen.   *
+*---------------------------------------------------------------------*
+FORM transaktion_init USING us_tcode.
+
+ENHANCEMENT-POINT transaktion_init_10 SPOTS es_sapmv45a.
+  DATA: ti_error.
+  DATA: da_text_vbeln TYPE lv70t_ty_appl_table.
+  DATA: tabname(30) TYPE c VALUE 'NDISYSTEMS'.
+  DATA: BEGIN OF wa_ndisyst,
+          logsys(10) TYPE c,
+          type(10)   TYPE c,
+          ndirel(4)  TYPE c,
+        END OF wa_ndisyst.
+  DATA: l_sd_sales_exit TYPE REF TO if_ex_badi_sd_sales,
+        active          TYPE xfeld.
+ENHANCEMENT-POINT transaktion_init_01 SPOTS es_sapmv45a.
+
+  INCLUDE mv45af0t_add_email_free_memory IF FOUND.
+* Programme laden, weil sonst die Tabellendaten bei Modulaufrufen
+* aus dem Modul Fcode nicht bekannt sind.
+  PERFORM dummy(sapfv45c).
+  PERFORM dummy(sapfv45k).
+  PERFORM programm_laden(sapfv45e).
+  PERFORM programm_laden(sapfv45p).
+  PERFORM programm_laden(sapfv45s).
+* Key für Initialisierung
+*-----Begin: Application Component : IS-MP-SD, Switch: /SAPMP/FAST_DATA_ENTRY_SD, Switch Description: Fast Data Entry of Char. SD-----*
+  PERFORM config_transktion_init.
+*-----End:Application Component : IS-MP-SD, Switch: /SAPMP/FAST_DATA_ENTRY_SD, Switch Description: Fast Data Entry of Char. SD--------*
+
+ENHANCEMENT-POINT transaktion_init_02 SPOTS es_sapmv45a.
+  CLEAR tuuid.
+  IF call_function IS INITIAL.
+    CALL FUNCTION 'INIT_EVENT_MASTER_TUUID_GET'
+      IMPORTING
+        tuuid  = tuuid
+      EXCEPTIONS
+        OTHERS = 2.
+  ENDIF.
+
+* Catt aktiv ?
+  IMPORT cattaktiv FROM MEMORY ID 'CATT'.
+  IF sy-subrc > 0.
+    CLEAR cattaktiv.
+  ENDIF.
+
+* Clear double click fcode
+  CLEAR gl_fcode.
+
+* Bei allen Datenbankzugriffen wird mit den Feldern VBAK-MANDT
+* und VBAK-VBELN gearbeitet.
+  vbak-mandt = sy-mandt.
+
+* Laufzeitinformation (Hell, Dunkel, Batch, Call Modus)
+  CALL FUNCTION 'BDC_RUNNING'
+    IMPORTING
+      bi_info = bi_info          " A=Hell, E=Fehler, N=Dunkel
+    EXCEPTIONS
+      OTHERS  = 1.
+
+* Sonderlogik für Hintergrundverarbeitung global abschalten
+  GET PARAMETER ID 'SD_BACKGROUND_DEBUG' FIELD background_debug.
+
+* Gruppenverfügbarkeitsprüfung (APO-Liefergruppenkorrelation)?
+  SELECT SINGLE * FROM t000atp INTO atp_basic_setting.
+*  do 1 times.
+*    "If APO is connected then group check must be active "1849230
+*    "otherwise ATP gives wrong results                   "1849230
+*    "Hint: For ERP planned materials group call is deactivated later on
+*
+** Prüfen, ob PlugIn aktiv ist
+*    call function 'ND_EXITS_ACTIVE_CHECK'
+*      exceptions
+*        exits_not_active = 1
+*        others           = 2.
+*    check sy-subrc eq 0.
+** Prüfen, ob ein APO-System mit Release >= 31 angeschlossen ist
+*    call function 'DDIF_NAMETAB_GET'
+*      exporting
+*        tabname   = tabname
+*      exceptions
+*        not_found = 1
+*        others    = 2.
+*    check sy-subrc eq 0.
+*    select single * into wa_ndisyst from (tabname)
+*           where type eq 'SAP_APO   ' and ndirel ge '31  '.
+*    if  sy-subrc ne 0.
+*      check cl_ops_switch_check=>ops_sfws_sc_erptms_sched( ) eq abap_true.
+*      select single * into wa_ndisyst from (tabname)
+*             where type eq 'SAP_SCMB  ' and ndirel ge '31  '.
+*      check sy-subrc eq 0.
+*    endif.
+*    atp_gruppenaufruf = charx.
+*  enddo.
+
+* In Model-S Group Check for ATP is allways to be active with out any condition
+  atp_gruppenaufruf = charx.
+
+* Anwendungszeitmessung initialisieren
+  CALL FUNCTION 'PF_ASTAT_INIT'
+    EXPORTING
+      initkey = process_salesorder
+    EXCEPTIONS
+      OTHERS  = 1.
+
+* Defaultwerte aus T180 lesen und interpretieren
+  PERFORM t180_interpretieren USING us_tcode.
+
+* Container für Auftragsanlage aus Container einlesen
+  PERFORM container_import.
+
+* Je nach Transaktionstyp gewisse Fcodes deaktivieren: Tabelle füllen
+  IF call_function = space.
+    PERFORM exclude_function_trtyp.
+  ENDIF.
+
+* GUI-Redesign 4.0: Tabelle der Bildgruppen initialisieren
+  PERFORM taxi_screen_groups_init.
+
+* Dynamisch Schlüsselwörter und Texte setzen
+  PERFORM schluesselworte_setzen USING t180-trvog.
+
+* IDOC und Batch-Input, Initialisieren hier, da nach COMMIT WORK
+* BELEG_SICHERN die Routine BELEG_INITIALISIEREN nicht mehr laeuft
+* und somit Daten des global Memory stehen blieben
+  IF ( sy-binpt NE space
+       OR call_activity EQ 'CRRE'
+       OR call_activity EQ 'CRRC' ) AND
+     call_activity NE activity_purchase AND
+     call_activity NE activity_assembly.
+
+
+* Montage und Kalkulation initialisieren
+* Das Flag status_buff_init ist normalerweise immer gesetzt. Wird
+    IF status_buff_init NE space
+      AND call_activity NE activity_reverse_pgi.
+      PERFORM montage_init.
+* Kalkulation
+      CALL FUNCTION 'K_UNITCOSTING_REFRESH'.
+      CALL FUNCTION 'CK_F_PRODUCTCOSTING_REFRESH'.
+* Aufteilungsregel
+      CALL FUNCTION 'K_SETTLEMENT_RULE_REFRESH'
+        EXPORTING
+          all_refresh = charx.
+    ENDIF.
+
+* Delete texts from the last document in call transaction mode.
+    DATA: da_vbeln_save LIKE vbak-vbeln.
+    IMPORT da_vbeln_save
+           FROM MEMORY ID co_mem_id-sales_doc.
+    IF NOT da_vbeln_save IS INITIAL.
+      APPEND da_vbeln_save TO da_text_vbeln.
+    ENDIF.
+
+  ENDIF.
+
+* Unter PBO stehen die GPA-Werte noch nicht zur Verfuegung
+* Beim Anlegen werden die Parameter aus dem Memory geholt.
+* Nur wenn die Werte nicht initial sind, sonst werden im Funktionsbau-
+* steinmode die Eingaben überschrieben.
+  IF call_function = space.
+    IF t180-trtyp = charh.
+      DATA(lv_vbtyp) = gv_vbtyp.
+      GET PARAMETER ID 'VBT' FIELD lv_vbtyp.
+      IF NOT lv_vbtyp IS INITIAL.
+        gv_vbtyp = lv_vbtyp.
+      ENDIF.
+      CLEAR lv_vbtyp.
+      SET PARAMETER ID 'VBT' FIELD lv_vbtyp.
+      IF vbak-auart IS INITIAL.
+        PERFORM vbak-auart_get_parameter(sapfv45k).
+      ENDIF.
+      IF t180-trvog NE charb AND
+         call_dialog IS INITIAL.
+        IF vbak-vkorg IS INITIAL.
+          GET PARAMETER ID 'VKO' FIELD vbak-vkorg.
+        ENDIF.
+        IF vbak-vtweg IS INITIAL.
+          GET PARAMETER ID 'VTW' FIELD vbak-vtweg.
+        ENDIF.
+        IF vbak-spart IS INITIAL.
+          GET PARAMETER ID 'SPA' FIELD vbak-spart.
+        ENDIF.
+        IF vbak-vkbur IS INITIAL.
+          GET PARAMETER ID 'VKB' FIELD vbak-vkbur.
+        ENDIF.
+        IF vbak-vkgrp IS INITIAL.
+          GET PARAMETER ID 'VKG' FIELD vbak-vkgrp.
+        ENDIF.
+      ENDIF.
+* Default Tabelle TVAK lesen
+      IF vbak-auart NE space.
+        PERFORM tvakt_select USING vbak-auart
+                                     ti_error
+                                     sy-subrc.
+      ENDIF.
+
+* Default Text zur Verkaufsorganisation lesen
+      IF vbak-vkorg NE space.
+        PERFORM tvko_select USING vbak-vkorg
+                                    ti_error
+                                    sy-subrc.
+        PERFORM tvkot_select USING vbak-vkorg
+                                     ti_error
+                                     sy-subrc.
+      ENDIF.
+
+* Default Text zum Vertriebsweg lesen
+      IF vbak-vtweg NE space.
+        PERFORM tvtwt_select USING vbak-vtweg
+                                     ti_error
+                                     sy-subrc.
+      ENDIF.
+
+* Default Text zur Sparte lesen
+      IF vbak-spart NE space.
+        PERFORM tspat_select USING vbak-spart
+                                     ti_error
+                                     sy-subrc.
+      ENDIF.
+
+* Default Text zur Verkäufersgruppe lesen
+      IF vbak-vkbur NE space.
+        PERFORM tvkbt_select USING vbak-vkbur
+                                     ti_error
+                                     sy-subrc.
+      ENDIF.
+
+* Default Text zur Verkäufersgruppe lesen
+      IF vbak-vkgrp NE space.
+        PERFORM tvgrt_select USING vbak-vkgrp
+                                     ti_error
+                                     sy-subrc.
+      ENDIF.
+    ELSEIF call_dialog = space.
+* Ansonsten wird die Belegnummer vorgeschlagen
+* Bei Call Dialog soll es aber nicht passieren
+* (Anzeige über Call Dialog)
+      PERFORM vbak-vbeln_get_parameter(sapfv45k).
+    ENDIF.
+
+* Definition des Standardfunktionscodes: ENT2: auf Dynpro bleiben
+    fcode = fcode_anforderung.
+  ENDIF.
+
+* BEGIN OF ELIMINNATION based on SCR_000001
+** Aussenhandel: Dokumentengeschaeft: Initialisierungsroutinen
+*  call function 'RV_LOC_INIT_PREPARE'.
+* END OF ELIMINNATION based on SCR_000001
+
+* Aussenhandel: Dokumentengeschaeft: Initialisieren Protokoll
+*  CALL FUNCTION 'RV_FOR_TRADE_PROTOCOL_INIT'
+*       EXCEPTIONS
+*            OTHERS = 1.
+
+ENHANCEMENT-POINT transaktion_init_11 SPOTS es_sapmv45a.
+
+* BEGIN OF ELIMINNATION based on SCR_000001
+** Aussenhandel: Gesetzliche Kontrolle: Initialisieren SLS-Daten
+*  call function 'FT_SLS_PARTNER_ADDR_MEM_INIT'
+*    exporting
+*      i_base_document = '2VA'.
+* END OF ELIMINNATION based on SCR_000001
+
+* Ab Release 99A: Text Control ist für alle Systemtypen verfügbar
+  PERFORM text_control_tr_init.
+
+* ZAV Memory IMPORT
+  IF cam_memory_id > 0.
+    CALL FUNCTION 'ADDR_MEMORY_NEW_ROLL_AREA'
+      EXPORTING
+        memory_stack_top = cam_memory_id.
+    CALL FUNCTION 'ADDR_MEMORY_RESTORE'
+      EXCEPTIONS
+        memory_stack_empty = 1
+        internal_error     = 2
+        OTHERS             = 3.
+    IF sy-subrc <> 0.
+*     MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+*         WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+    ENDIF.
+  ENDIF.
+
+* Initialisieren Textmemory and Pricing Agreements
+  IF call_activity <> activity_invoice_request AND
+     call_activity <> activity_service_request AND
+     call_activity <> activity_service_order   AND
+     call_activity <> activity_rebate_set      AND
+     call_activity <> activity_bapi_copy       AND
+     call_activity <> activity_assembly.
+
+    IMPORT catalog FROM MEMORY ID 'SAPLSTXD'.
+    IF sy-subrc = 0.
+      APPEND vbak-vbeln TO da_text_vbeln.
+
+      CALL FUNCTION 'SD_DELETE_TEXT_FROM_CATALOG'
+        EXPORTING
+          fi_caller = gc_text_appl_id-sales_document
+          fit_vbeln = da_text_vbeln[]
+        EXCEPTIONS
+          OTHERS    = 0.
+
+      CALL FUNCTION 'RV_CONDITION_RESET'
+        EXPORTING
+          free_memory = charx.
+
+    ENDIF.
+  ENDIF.
+
+* globale Flags für Berechtigungsprüfungen im CUA_EXCLUDE initialisieren
+  PERFORM cua_exclude_auth_check_init.
+
+* Initialize batch data & batch selection criteria
+  IF call_function IS INITIAL AND
+     call_activity IS INITIAL.
+    CALL FUNCTION 'VB_INIT'
+      EXPORTING
+        init_reset = charx.
+  ENDIF.
+  IF call_activity NE activity_assembly AND
+     call_activity NE activity_global_trade.       "note 3120747
+    CALL FUNCTION 'VB_INIT'.
+  ENDIF.
+
+* check also the flag from DP90, note 2873126
+  FIELD-SYMBOLS: <check>.
+  DATA: l_no_init_config_data(1) TYPE c.
+  UNASSIGN <check>.
+  ASSIGN ('(SAPLV46H)g_no_init_config_data') TO <check>.
+  IF sy-subrc = 0  AND <check> = charx  .
+    l_no_init_config_data = charx.
+  ENDIF.
+
+* init configuration
+  IF call_activity NE activity_assembly            AND
+     call_activity NE activity_purchase            AND
+     call_activity NE activity_service_order       AND
+     call_activity NE activity_service_order_s4crm AND
+     call_activity NE activity_global_trade        AND
+     NOT ( line_exists( cl_lord=>gt_scenario_id[ table_line = if_sd_sls_caller=>co_scenario_id-solution_order ] ) AND cl_lord=>gs_logic_switch-simulate = abap_true ).
+
+    IF l_no_init_config_data = space.
+      CALL FUNCTION 'CUCB_INITIALIZER'.
+    ENDIF.
+  ENDIF.
+
+* refresh parameter effectivity
+  CALL FUNCTION 'TECHS_DATA_RESET'.
+
+* clear temp. adrnr
+  IF data_read_from_archive = charx.
+    DATA: da_address_handle LIKE szad_field-handle.
+    LOOP AT xvbpa WHERE adrnr(1) = '$'.
+      da_address_handle = xvbpa-adrnr.
+      CALL FUNCTION 'ADDR_SINGLE_RESET'
+        EXPORTING
+          address_handle   = da_address_handle
+        EXCEPTIONS
+          number_not_found = 1
+          handle_not_found = 2
+          parameter_error  = 3
+          internal_error   = 4
+          OTHERS           = 5.
+    ENDLOOP.
+  ENDIF.
+
+* VA03 für archivierte Belege
+  CLEAR data_read_from_archive.
+
+* CALL TRANSACTION USING ... in background
+* (see Function Module BDC_RUNNING)
+* No initialization of the ABAP-memory in
+* BELEG_SICHERN (-> BELEG_INITIALISIEREN)
+* So initialize here
+* -> Initialize Funds Management
+  IF bi_info-ctu_amodus = charn AND   " In background
+     bi_info-ctu_aktiv  = charx       " CALL TRANSACTION USING ...
+     AND call_function IS INITIAL     " ...
+     AND call_activity IS INITIAL
+     AND call_dialog   IS INITIAL.
+    CALL FUNCTION 'FM_CO_ASS_INPUT_INIT'
+      EXPORTING
+        i_obart = objektart_vb.
+  ENDIF.
+
+* Refresh data in function group INTTAB_ANALYZE
+  INCLUDE mv45af0t_refresh_xytab.                     " INTTAB_ANALYZE
+* Read table TPARAMS_SD
+* Set variable GV_INTTAB_ANALYZE in function group INTTAB_ANALYZE
+  INCLUDE mv45af0t_read_tparams_sd.                   " INTTAB_ANALYZE
+
+* check if sd_sfws_sc2 is switched on and special archiving is active
+  IF NOT cl_ops_switch_check=>sd_sfws_sc2( ) IS INITIAL.
+    CLEAR gv_vbak_special_archiving.
+    CALL FUNCTION 'SD_VBAK_SPECIAL_ARCHIVING'
+      IMPORTING
+        ev_special_archiving = gv_vbak_special_archiving.
+  ENDIF.
+
+* Simplification / Deprecation SCR_000048
+*  if /cbad/cl_switch_check=>/cbad/sd_sfws_sc1( ) eq abap_true.
+**   Contract and Billing
+*    call method /cbad/cl_message_log=>refresh_log.
+*    call method /cbad/cl_message_log=>create_log.
+*  endif.
+
+* Integration to new TM
+  cl_sd_sls_tm_int=>get_instance( ).
+
+* Call SD Sales BAdI
+  CALL FUNCTION 'GET_HANDLE_SD_SALES'
+    IMPORTING
+      handle = l_sd_sales_exit
+      active = active.
+  IF active = charx.
+    CALL METHOD l_sd_sales_exit->transaction_init
+      EXPORTING
+        ft180     = t180
+        factivity = call_activity
+      CHANGING
+        fvbak     = vbak.
+  ENDIF.
+
+  IF call_activity EQ gc_activity_lord.
+    INCLUDE sd_sepa_badi_aktiv.
+  ENDIF.
+
+  TRY.
+      GET BADI go_buttonbadi_cus.
+    CATCH cx_badi. "no exception handling needed
+  ENDTRY.
+
+  gr_sls_data_ref = cl_sls_data_ref=>create_instance( ).
+  IF NOT gr_sls_data_ref IS INITIAL.
+    CALL METHOD gr_sls_data_ref->set_data_ref
+      EXPORTING
+        iv_xvbak_updkz = xvbak_updkz
+        iv_dataloss    = r185d-dataloss
+        is_t180        = t180
+        is_vbak        = vbak
+        is_vbak_prev   = *vbak
+        is_xvbak       = xvbak
+        is_yvbak       = yvbak
+        is_vbap        = vbap
+        is_vbap_prev   = *vbap
+        is_vbapd       = vbapd
+        is_xvbap       = xvbap
+        it_xvbap       = xvbap[]
+        it_yvbap       = yvbap[]
+        it_ivbap       = ivbap[]
+        is_vbkd        = vbkd
+        is_vbkd_head   = gs_vbkd_head
+        is_vbkd_prev   = *vbkd
+        is_vbuk        = vbuk
+        is_xvbkd       = xvbkd
+        it_xvbkd       = xvbkd[]
+        it_yvbkd       = yvbkd[]
+        it_xvbpa       = xvbpa[]
+        it_yvbpa       = yvbpa[]
+        it_xvbpa2      = xvbpa2[]
+        it_yvbpa2      = yvbpa2[]
+        it_xvbadr      = xvbadr[]
+        it_yvbadr      = yvbadr[]
+        it_xvbfa       = xvbfa[]
+        it_yvbfa       = yvbfa[]
+        is_tvak        = tvak
+        is_tvap        = tvap
+        it_xvbuk       = xvbuk[]
+        it_yvbuk       = yvbuk[]
+        it_xvbup       = xvbup[]
+        it_yvbup       = yvbup[]
+        is_xvbep       = xvbep
+        it_xvbep       = xvbep[]
+        it_yvbep       = yvbep[]
+        it_ivbep1      = ivbep1[]
+        it_xvbuv       = xvbuv[]
+        it_yvbuv       = yvbuv[]
+        it_xkomv       = xkomv[]
+        it_ykonvc      = ykonvc[]
+        it_avbbd       = avbbd[]
+        is_rv02p       = rv02p
+        is_maapv       = maapv.
+  ENDIF.
+
+  PERFORM init_field_prop.
+
+* Initialize Cloud BAdIs
+  GET BADI go_sls_check_item.
+  GET BADI go_sls_modify_item.
+  GET BADI go_sls_check_head.
+  GET BADI go_sls_modify_head.
+  GET BADI go_sls_modify_delivsched.
+  GET BADI go_sls_check_delivsched.
+  GET BADI go_sls_fieldprop_head.
+  GET BADI go_sls_fieldprop_item.
+  GET BADI go_sls_fieldprop_delivsched.
+  GET BADI go_sls_check_before_save.
+  GET BADI go_sls_check_delete_item.
+
+  go_sls_mapper->set_data_ref(
+    is_t180  = t180
+    is_vbak  = vbak
+    is_vbkd  = vbkd
+    is_veda  = veda
+    is_vbap  = vbap
+    is_vblb  = vblb ).
+
+  go_message->init(
+    ir_call_activity          = REF #( call_activity )
+    ir_hinweis_protokoll_show = REF #( hinweis_protokoll_show ) ).
+
+  go_reqd_deliv_date = cl_sd_sls_va_factory=>get_reqd_deliv_date(
+    iv_call_bapi     = call_bapi
+    iv_call_function = call_function
+    iv_call_activity = call_activity
+    it_scenario_id   = cl_lord=>gt_scenario_id ).
+
+  go_pricing_date = cl_sd_sls_va_factory=>get_pricing_date(
+    iv_call_bapi     = call_bapi
+    iv_call_function = call_function
+    iv_call_activity = call_activity
+    it_scenario_id   = cl_lord=>gt_scenario_id ).
+
+  go_valid_to_date = cl_sd_sls_va_factory=>get_valid_to_date(
+    iv_call_bapi     = call_bapi
+    iv_call_function = call_function
+    iv_call_activity = call_activity
+    it_scenario_id   = cl_lord=>gt_scenario_id ).
+ENDFORM.                    "TRANSAKTION_INIT
